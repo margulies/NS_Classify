@@ -149,7 +149,19 @@ class maskClassifier:
 
         return imps
 
-    def plot_importances(self, index, thresh=0.01):
+    def get_average_importance(self, sort=True, relative=True):
+        fi = list(np.array([np.array(zip(*yeoClass.get_importances(a, relative, sort=False))[0]) for a in range(0, 6)]).mean(axis=0))
+
+        if sort:
+            from operator import itemgetter
+            imps.sort(key=itemgetter(0))
+
+
+        return [(i, self.feature_names[num]) for (num, i) in enumerate(fi)]
+
+
+
+    def plot_importances(self, index, thresh=20):
     	""" Plot importances for a given index """
     	import pylab as pl
 
@@ -170,6 +182,28 @@ class maskClassifier:
     	pl.xlabel('Relative Importance')
     	pl.title('Variable Importance')
     	pl.show()
+
+    def plot_all_importances(self,  thresh=20):
+        """ Plot importances for a given index """
+        import pylab as pl
+
+        [imps, names] = zip(*self.get_all_importances())
+
+        imps = np.array(imps)
+        imps = imps[imps>thresh]
+
+        names = np.array(names)
+        names = names[-len(imps):]
+
+        sorted_idx = np.argsort(imps)
+        pos = np.arange(sorted_idx.shape[0]) + .5
+        pl.subplot(1, 2, 2)
+
+        pl.barh(pos, imps[sorted_idx], align='center')
+        pl.yticks(pos, names[sorted_idx])
+        pl.xlabel('Relative Importance')
+        pl.title('Variable Importance')
+        pl.show()
 
     def update_progress(self, progress):
         sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
@@ -193,7 +227,7 @@ wr = csv.reader(readfile, quoting=False)
 reduced_features = [word[0] for word in wr]
 reduced_features = [word[2:-1] for word in reduced_features]
 
-yeoClass = maskClassifier(dataset, masklist, param_grid=None, classifier=GradientBoostingClassifier(learning_rate=0.25, max_features=50, n_estimators=2000))
+yeoClass = maskClassifier(dataset, masklist, param_grid=None, classifier=GradientBoostingClassifier(learning_rate=0.25, max_features=50, n_estimators=1000))
 
 yeoClass.classify(features=reduced_features, calculate_importances=True)
 
