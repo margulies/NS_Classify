@@ -37,12 +37,17 @@ class maskClassifier:
         self.fit_clfs = np.empty((self.mask_num, self.mask_num), object) # Fitted classifier
         self.c_data = np.empty((self.mask_num, self.mask_num), tuple)    # Actual data
 
-    def classify(self, calculate_importances=False):
+    def classify(self, calculate_importances=False, features=None):
 
         iters = list(itertools.combinations(self.masklist, 2))
         prog = 0.0
         total = len(list(iters))
         self.update_progress(0)
+
+        if features:
+            self.features = features
+        else:
+            self.features = self.dataset.get_feature_names()
 
 
         if calculate_importances:
@@ -55,7 +60,7 @@ class maskClassifier:
 
             output = classify.classify_regions(self.dataset, names,
                     classifier=self.classifier, param_grid=self.param_grid,
-                    threshold=self.thresh, output='summary_clf')
+                    threshold=self.thresh, features=features, output='summary_clf')
 
 
             self.class_score[index] = output['score']
@@ -64,7 +69,7 @@ class maskClassifier:
 
             self.fit_clfs[index] = output['clf']
 
-            self.c_data[index] = classify.get_studies_by_regions(dataset, names, threshold=self.thresh)
+            self.c_data[index] = classify.get_studies_by_regions(dataset, names, threshold=self.thresh, features=features)
 
             self.dummy_score[index] = classify.classify_regions(dataset, 
                 names, method='Dummy', threshold=self.thresh)['score']
@@ -89,6 +94,10 @@ class maskClassifier:
                     self.ns[j, b] = self.ns[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
                     self.feature_importances[j, b] = self.feature_importances[b, j]
+
+                
+        self.feature_names = self.dataset.get_feature_names(features)
+
 
     def get_mask_averages(self):
         return [self.diffs[k].mean() for k in range(0, self.diffs.shape[0])]
@@ -117,7 +126,7 @@ class maskClassifier:
     def get_importances(self, index, sort=True, relative=True):
         """ get the importances with feature names given a tuple mask index """
 
-        if self.feature_importances[index]:
+        if self.feature_importances != None:
             fi = self.feature_importances[index]
         elif self.param_grid:
             fi = self.fit_clfs[index].clf.best_estimator_.feature_importances_
@@ -125,10 +134,14 @@ class maskClassifier:
             fi = self.fit_clfs[index].clf.fit(self.c_data[index][0], 
                 yeoClass.c_data[index][1]).feature_importances_
 
+        if not isinstance(index, tuple):
+            fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
+
+
         if relative:
         	fi = 100.0 * (fi / fi.max())
-        fn = dataset.get_feature_names()
-        imps = [(i, fn[num]) for (num, i) in enumerate(fi)]
+
+        imps = [(i, self.feature_names[num]) for (num, i) in enumerate(fi)]
 
         if sort:
             from operator import itemgetter
@@ -162,6 +175,7 @@ class maskClassifier:
         sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
                          progress))
 
+
 dataset = Dataset.load('../data/dataset.pkl')
 
 masks = ['7Networks_Liberal_1.nii.gz', '7Networks_Liberal_2.nii.gz',
@@ -172,4 +186,15 @@ masks = ['7Networks_Liberal_1.nii.gz', '7Networks_Liberal_2.nii.gz',
 rootdir = '../masks/Yeo_JNeurophysiol11_MNI152/standardized/'
 
 masklist = [rootdir + m for m in masks]
+
+import csv
+readfile = open("../data/reduced_features.csv", 'rbU')
+wr = csv.reader(readfile, quoting=False)
+reduced_features = [word[0] for word in wr]
+reduced_features = [word[2:-1] for word in reduced_features]
+
+yeoClass = maskClassifier(dataset, masklist, param_grid=None, classifier=GradientBoostingClassifier(learning_rate=0.25, max_features=50, n_estimators=2000))
+
+yeoClass.classify(features=reduced_features, calculate_importances=True)
+
 
