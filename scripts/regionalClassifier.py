@@ -150,15 +150,16 @@ class maskClassifier:
         return imps
 
     def get_average_importance(self, sort=True, relative=True):
-        fi = list(np.array([np.array(zip(*yeoClass.get_importances(a, relative, sort=False))[0]) for a in range(0, 6)]).mean(axis=0))
+        fi = list(np.array([np.array(zip(*yeoClass.get_importances(a, relative=relative, sort=False))[0]) for a in range(0, 6)]).mean(axis=0))
+
+        imps = [(i, self.feature_names[num]) for (num, i) in enumerate(fi)]
 
         if sort:
             from operator import itemgetter
             imps.sort(key=itemgetter(0))
 
 
-        return [(i, self.feature_names[num]) for (num, i) in enumerate(fi)]
-
+        return imps
 
 
     def plot_importances(self, index, thresh=20):
@@ -183,11 +184,11 @@ class maskClassifier:
     	pl.title('Variable Importance')
     	pl.show()
 
-    def plot_all_importances(self,  thresh=20):
+    def plot_average_importances(self,  thresh=20):
         """ Plot importances for a given index """
         import pylab as pl
 
-        [imps, names] = zip(*self.get_all_importances())
+        [imps, names] = zip(*self.get_average_importance())
 
         imps = np.array(imps)
         imps = imps[imps>thresh]
