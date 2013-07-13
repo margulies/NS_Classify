@@ -138,7 +138,7 @@ class maskClassifier:
         """
 
         if not index:   # If None, average across all
-            fi = list(np.array([np.array(zip(*self.get_importances(a, relative=relative, sort=False))[0]) for a in range(0, len(self.masklist)]).mean(axis=0))
+            fi = list(np.array([np.array(zip(*self.get_importances(a, relative=relative, sort=False))[0]) for a in range(0, len(self.masklist))]).mean(axis=0))
         elif not isinstance(index, tuple): # If not a tuple (i.e. integer), get mean for column
             fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
         else: # Otherwise just get data for a pair
