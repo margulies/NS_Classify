@@ -124,18 +124,31 @@ class maskClassifier:
 
 
     def get_importances(self, index, sort=True, relative=True):
-        """ get the importances with feature names given a tuple mask index """
+        """ get the importances with feature names given a tuple mask index
+        Args:
+            index: Can be an tuple index comparing two masks (2, 3),
+                an integer index (i.e. average for mask 2),
+                or None, which indicates overall average 
 
-        if self.feature_importances != None:
-            fi = self.feature_importances[index]
-        elif self.param_grid:
-            fi = self.fit_clfs[index].clf.best_estimator_.feature_importances_
-        else:
-            fi = self.fit_clfs[index].clf.fit(self.c_data[index][0], 
-                yeoClass.c_data[index][1]).feature_importances_
+            sort: Boolean indicating if output should be sorted by importances
+            relative: Should importances by normalized by highest importances
 
-        if not isinstance(index, tuple):
+        Output:
+            A list of tuples with importance feature pairs
+        """
+
+        if not index:   # If None, average across all
+            fi = list(np.array([np.array(zip(*self.get_importances(a, relative=relative, sort=False))[0]) for a in range(0, len(self.masklist)]).mean(axis=0))
+        elif not isinstance(index, tuple): # If not a tuple (i.e. integer), get mean for column
             fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
+        else: # Otherwise just get data for a pair
+            if self.feature_importances != None: # If they exist just get them
+                fi = self.feature_importances[index]
+            elif self.param_grid: # If you used a param_grid then you can get them from clf
+                fi = self.fit_clfs[index].clf.best_estimator_.feature_importances_
+            else: # Worse case scenario refit model
+                fi = self.fit_clfs[index].clf.fit(self.c_data[index][0], 
+                    self.c_data[index][1]).feature_importances_
 
 
         if relative:
@@ -149,21 +162,20 @@ class maskClassifier:
 
         return imps
 
-    def get_average_importance(self, sort=True, relative=True):
-        fi = list(np.array([np.array(zip(*yeoClass.get_importances(a, relative=relative, sort=False))[0]) for a in range(0, 6)]).mean(axis=0))
 
-        imps = [(i, self.feature_names[num]) for (num, i) in enumerate(fi)]
+    def plot_importances(self, index, thresh=20, file_name=None):
+    	""" Plot importances for a given index 
+        Args:
+            index: Can be an tuple index comparing two masks (2, 3),
+                an integer index (i.e. average for mask 2),
+                or None, which indicates overall average 
+            thresh: Minimum importance to plot
+            file: Optional string indicating location of file to save plot
+                instead of displaying
 
-        if sort:
-            from operator import itemgetter
-            imps.sort(key=itemgetter(0))
-
-
-        return imps
-
-
-    def plot_importances(self, index, thresh=20):
-    	""" Plot importances for a given index """
+        Output:
+            Either shows plot or saves it
+        """
     	import pylab as pl
 
     	[imps, names] = zip(*self.get_importances(index))
@@ -182,29 +194,12 @@ class maskClassifier:
     	pl.yticks(pos, names[sorted_idx])
     	pl.xlabel('Relative Importance')
     	pl.title('Variable Importance')
-    	pl.show()
 
-    def plot_average_importances(self,  thresh=20):
-        """ Plot importances for a given index """
-        import pylab as pl
+        if not file_name:
+    	   pl.show()
+        else:
+            pl.savefig(file_name, bbox_inches=0)
 
-        [imps, names] = zip(*self.get_average_importance())
-
-        imps = np.array(imps)
-        imps = imps[imps>thresh]
-
-        names = np.array(names)
-        names = names[-len(imps):]
-
-        sorted_idx = np.argsort(imps)
-        pos = np.arange(sorted_idx.shape[0]) + .5
-        pl.subplot(1, 2, 2)
-
-        pl.barh(pos, imps[sorted_idx], align='center')
-        pl.yticks(pos, names[sorted_idx])
-        pl.xlabel('Relative Importance')
-        pl.title('Variable Importance')
-        pl.show()
 
     def update_progress(self, progress):
         sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
@@ -228,7 +223,7 @@ wr = csv.reader(readfile, quoting=False)
 reduced_features = [word[0] for word in wr]
 reduced_features = [word[2:-1] for word in reduced_features]
 
-yeoClass = maskClassifier(dataset, masklist, param_grid=None, classifier=GradientBoostingClassifier(learning_rate=0.25, max_features=50, n_estimators=1000))
+yeoClass = maskClassifier(dataset, masklist, param_grid=None, classifier=GradientBoostingClassifier(learning_rate=0.25, max_features=50, n_estimators=10))
 
 yeoClass.classify(features=reduced_features, calculate_importances=True)
 
