@@ -15,9 +15,11 @@ from nipype.interfaces import fsl
 from sklearn.ensemble import GradientBoostingClassifier
 
 from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import RFE
 from sklearn.metrics import zero_one_loss
+
 
 class maskClassifier:
 
@@ -46,6 +48,9 @@ class maskClassifier:
         self.c_data = np.empty((self.mask_num, self.mask_num), tuple)  # Actual data
 
         self.cv = cv
+
+        if isinstance(self.classifier, RFE):
+             self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
 
     def classify(self, features=None):
 
@@ -78,9 +83,11 @@ class maskClassifier:
 
                 self.fit_clfs[index] = self.classifier
 
-                self.class_score[index] = self.classifier.cv_scores_.max()
+                self.class_score[index] = self.classifier.score(*self.c_data[index])
 
                 self.feature_importances[index] = self.classifier.estimator_.coef_[0]
+
+                self.feature_ranking[index] = self.classifier.ranking_
 
             else:
                 output = classify.classify_regions(self.dataset, names,
@@ -90,17 +97,15 @@ class maskClassifier:
 
                 self.class_score[index] = output['score']
 
-                self.fit_clfs[index] = output['clf']
+                self.fit_clfs[index] = output['clf'].fit(*self.c_data[index])
 
                 if self.param_grid: # Just get them if you used a grid
                     self.feature_importances[index] = \
-                        self.fit_clfs[index].clf.fit(*self.c_data[index]).feature_importances_
+                        self.fit_clfs[index].fit(*self.c_data[index]).feature_importances_
                 elif isinstance(self.classifier, GradientBoostingClassifier): # Refit if not param_grid
-                    self.feature_importances[index] = self.fit_clfs[index].clf.fit(self.c_data[index][0],
-                    self.c_data[index][1]).feature_importances_
+                    self.feature_importances[index] = self.fit_clfs[index].feature_importances_
                 elif isinstance(self.classifier, LinearSVC):
-                    self.feature_importances[index] = self.fit_clfs[index].clf.fit(self.c_data[index][0],
-                    self.c_data[index][1]).coef_[0]
+                    self.feature_importances[index] = self.fit_clfs[index].coef_[0]
 
 
             self.dummy_score[index] = classify.classify_regions(dataset, names,
@@ -116,16 +121,16 @@ class maskClassifier:
 
         self.diffs = self.class_score - self.dummy_score
 
+
         # Make results fill in across diagonal
 
         for j in range(0, self.mask_num):
             for b in range(0, self.mask_num):
-                if self.diffs.mask[j, b]:
+                if self.diffs.mask[j, b] and not j == b:
                     self.diffs[j, b] = self.diffs[b, j]
                     self.fit_clfs[j, b] = self.fit_clfs[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
-                    # self.feature_importances[j, b] = \
-                    #     self.feature_importances[b, j]
+                    self.feature_importances[j, b] = self.feature_importances[b, j] * -1
 
         self.feature_names = self.dataset.get_feature_names(features)
 
@@ -156,7 +161,8 @@ class maskClassifier:
                        + folder + '/6' + ' -sub 1' + ' -thr 0',
                        out_file=out_file).run()
 
-    def get_importances(self, index, sort=True, relative=True):
+
+    def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False):
         """ get the importances with feature names given a tuple mask index
         Args:
             index: Can be an tuple index comparing two masks (2, 3),
@@ -170,14 +176,22 @@ class maskClassifier:
             A list of tuples with importance feature pairs
         """
 
-        if not index: # If None, take it out and get all
-            fi = self.feature_importances
+        if ranking:
+            fi = self.feature_ranking
         else:
-            fi = self.feature_importances[index]
+            fi = self.feature_importances
+
+        if not index: # If None, take it out and get all
+            fi = fi
+        else:
+            fi = fi[index]
        
 
         if not isinstance(index, tuple): # If not a tuple (i.e. integer or None), get mean
             fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
+
+        if absolute:
+            fi = np.abs(fi)
 
         if relative:
             fi = 100.0 * (fi / fi.max())
@@ -202,7 +216,7 @@ class maskClassifier:
 
 
 
-    def plot_importances(self, index, thresh=20, file_name=None):
+    def plot_importances(self, index, thresh=20, file_name=None, absolute=False, ranking=False):
         """ Plot importances for a given index 
         Args:
             index: Can be an tuple index comparing two masks (2, 3),
@@ -218,7 +232,7 @@ class maskClassifier:
 
         import pylab as pl
 
-        [imps, names] = zip(*self.get_importances(index))
+        [imps, names] = zip(*self.get_importances(index, absolute=absolute, ranking=ranking))
 
         imps = np.array(imps)
         imps = imps[imps > thresh]
