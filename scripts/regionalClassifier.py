@@ -23,11 +23,7 @@ from sklearn.metrics import zero_one_loss
 
 class maskClassifier:
 
-    def __init__(self, dataset, masks,
-                 classifier=GradientBoostingClassifier(), thresh=0.08,
-                 param_grid={'max_features': np.arange(2, 140, 44),
-                 'n_estimators': np.arange(5, 141, 50),
-                 'learning_rate': np.arange(0.05, 1, 0.1)}, cv=None):
+    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), thresh=0.08, param_grid=None, cv=None):
 
         self.masklist = zip(masks, range(0, len(masks)))
 
@@ -35,7 +31,6 @@ class maskClassifier:
 
         # Where to store differences, results, n's and dummy results
 
-        self.diffs = {}
         self.class_score = np.zeros((self.mask_num, self.mask_num))
         self.dummy_score = np.zeros((self.mask_num, self.mask_num))
 
@@ -49,13 +44,14 @@ class maskClassifier:
 
         self.cv = cv
 
+        self.status = 0
+
         if isinstance(self.classifier, RFE):
-             self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
+            self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
         else:
             self.feature_ranking = None
 
     def classify(self, features=None):
-
 
         iters = list(itertools.combinations(self.masklist, 2))
         prog = 0.0
@@ -64,20 +60,20 @@ class maskClassifier:
         self.update_progress(0)
 
         if features:
-            self.features = features
+            self.feature_names = self.dataset.get_feature_names(features)
         else:
-            self.features = self.dataset.get_feature_names()
+            self.feature_names = self.dataset.get_feature_names()
 
         self.feature_importances = np.empty((self.mask_num,
-                    self.mask_num), object)
+            self.mask_num), object)
 
         for pairs in iters:
 
-            index = (pairs[0][1], pairs[1][1])
-            names = [pairs[0][0], pairs[1][0]]
+            index = (pairs[0][1], pairs[1][1]) # Tuple numeric index of pairs
+            names = [pairs[0][0], pairs[1][0]] # Actual paths to masks
 
             self.c_data[index] = classify.get_studies_by_regions(dataset, 
-                        names, threshold=self.thresh, features=features, regularization='scale')
+                names, threshold=self.thresh, features=features, regularization='scale')
 
             if isinstance(self.classifier, RFE):
 
@@ -93,9 +89,9 @@ class maskClassifier:
 
             else:
                 output = classify.classify_regions(self.dataset, names,
-                        classifier=self.classifier,
-                        param_grid=self.param_grid, threshold=self.thresh,
-                        features=features, output='summary_clf')
+                    classifier=self.classifier,
+                    param_grid=self.param_grid, threshold=self.thresh,
+                    features=features, output='summary_clf')
 
                 self.class_score[index] = output['score']
 
@@ -103,9 +99,10 @@ class maskClassifier:
 
                 if self.param_grid: # Just get them if you used a grid
                     self.feature_importances[index] = \
-                        self.fit_clfs[index].fit(*self.c_data[index]).feature_importances_
+                    self.fit_clfs[index].fit(*self.c_data[index]).feature_importances_
                 elif isinstance(self.classifier, GradientBoostingClassifier): # Refit if not param_grid
                     self.feature_importances[index] = self.fit_clfs[index].feature_importances_
+
                 elif isinstance(self.classifier, LinearSVC):
                     self.feature_importances[index] = self.fit_clfs[index].coef_[0]
 
@@ -116,12 +113,12 @@ class maskClassifier:
             prog = prog + 1
             self.update_progress(int(prog / total * 100))
 
-        self.class_score = np.ma.masked_array(self.class_score,
+            self.class_score = np.ma.masked_array(self.class_score,
                 self.class_score == 0)
-        self.dummy_score = np.ma.masked_array(self.dummy_score,
+            self.dummy_score = np.ma.masked_array(self.dummy_score,
                 self.dummy_score == 0)
 
-        self.diffs = self.class_score - self.dummy_score
+            self.diffs = self.class_score - self.dummy_score
 
 
         # Make results fill in across diagonal
@@ -133,17 +130,16 @@ class maskClassifier:
                     self.fit_clfs[j, b] = self.fit_clfs[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
                     self.feature_importances[j, b] = self.feature_importances[b, j] * -1
-                    if self.feature_ranking:
+                    if self.feature_ranking is not None:
                         self.feature_ranking[j, b] = self.feature_ranking[b, j]
 
-        self.feature_names = self.dataset.get_feature_names(features)
+        self.status = 1
 
     def get_mask_averages(self):
         return [self.diffs[k].mean() for k in range(0,
                 self.diffs.shape[0])]
 
-    def make_average_map(self,
-                         out_file='../results/Yeo_7Networks_AvgClass.nii.gz'):
+    def make_average_map(self, out_file='../results/Yeo_7Networks_AvgClass.nii.gz'):
 
         import tempfile
 
@@ -165,7 +161,6 @@ class maskClassifier:
                        + folder + '/6' + ' -sub 1' + ' -thr 0',
                        out_file=out_file).run()
 
-
     def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False):
         """ get the importances with feature names given a tuple mask index
         Args:
@@ -180,18 +175,23 @@ class maskClassifier:
             A list of tuples with importance feature pairs
         """
 
+
+        if not self.status:
+            raise Exception("You haven't finished classification yet!")
+
         if ranking:
+            if not isinstance(self.classifier, RFE):
+                raise Exception("Hey! You didn't even set an RFE classifier!")
             fi = self.feature_ranking
         else:
             fi = self.feature_importances
 
-        if not index: # If None, take it out and get all
-            fi = fi
-        else:
+        if index: # If None, take it out and get all
             fi = fi[index]
        
 
         if not isinstance(index, tuple): # If not a tuple (i.e. integer or None), get mean
+        #### DOESN"T WORK FOR NONE, IT TAKES THE FIRST ONE
             fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
 
         if absolute:
@@ -210,15 +210,7 @@ class maskClassifier:
         return imps
 
     def min_features(self):
-        n_features = []
-        for d1 in self.fit_clfs:
-            for d2 in d1:
-                if d2:
-                    n_features.append(d2.n_features_)
-
-        return np.array(n_features).mean()
-
-
+        return np.array([n_features for n_features in self.fit_clfs.flatten()]).mean()
 
     def plot_importances(self, index, thresh=20, file_name=None, absolute=False, ranking=False):
         """ Plot importances for a given index 
@@ -264,6 +256,13 @@ class maskClassifier:
                          progress))
         sys.stdout.flush()
 
+    def get_best_features(self, n, ranking=True):
+        """ Gets the n best features across all comparisons from a RFE classifier """
+
+        return self.get_importances(None, absolute=True, ranking=ranking)[-n:]
+
+
+
 
 dataset = Dataset.load('../data/dataset.pkl')
 
@@ -282,13 +281,7 @@ wr = csv.reader(readfile, quoting=False)
 reduced_features = [word[0] for word in wr]
 reduced_features = [word[2:-1] for word in reduced_features]
 
-# yeoClass = maskClassifier(dataset, masklist, param_grid=None,
-#                           classifier=GradientBoostingClassifier(learning_rate=0.25,
-#                           max_features=50, n_estimators=1000))
+param_grid={'max_features': np.arange(2, 140, 44),
+        'n_estimators': np.arange(5, 141, 50),
+        'learning_rate': np.arange(0.05, 1, 0.1)}
 
-# yeoClass.classify(features=reduced_features, calculate_importances=True)
-
-
-# for i in range(1, 7):
-#     yeoClass.plot_importances(i-1, file_name="../results/Yeo_imps_"+str(i)+".png")
-# yeoClass.plot_importances(None, file_name="../results/Yeo_imps_overall.png")
