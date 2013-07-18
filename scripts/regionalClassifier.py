@@ -51,6 +51,8 @@ class maskClassifier:
 
         if isinstance(self.classifier, RFE):
              self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
+        else:
+            self.feature_ranking = None
 
     def classify(self, features=None):
 
@@ -131,6 +133,8 @@ class maskClassifier:
                     self.fit_clfs[j, b] = self.fit_clfs[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
                     self.feature_importances[j, b] = self.feature_importances[b, j] * -1
+                    if self.feature_ranking:
+                        self.feature_ranking[j, b] = self.feature_ranking[b, j]
 
         self.feature_names = self.dataset.get_feature_names(features)
 
