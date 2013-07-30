@@ -21,9 +21,10 @@ from sklearn.feature_selection import RFE
 from sklearn.metrics import zero_one_loss
 
 
-class maskClassifier:
+class MaskClassifier:
 
-    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), thresh=0.08, param_grid=None, cv=None):
+    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), 
+        thresh=0.08, param_grid=None, cv=None):
 
         self.masklist = zip(masks, range(0, len(masks)))
 
@@ -139,29 +140,34 @@ class maskClassifier:
         return [self.diffs[k].mean() for k in range(0,
                 self.diffs.shape[0])]
 
-    def make_average_map(self, out_file='../results/Yeo_7Networks_AvgClass.nii.gz'):
+    def make_average_map(self, basename):
+
+        out_file = basename + "AvgClass.nii.gz"
 
         import tempfile
-
-        maskaverage = self.get_mask_averages()
-
         folder = tempfile.mkdtemp()
-        for (n, v) in enumerate(maskaverage):
 
-            fsl.ImageMaths(in_file=rootdir + '7Networks_Liberal_'
-                           + str(n + 1) + '.nii.gz', op_string=' -add '
+        (masks, num) = zip(*self.masklist)
+
+        for (n, v) in enumerate(self.get_mask_averages()):
+
+            fsl.ImageMaths(in_file=masks[n], op_string=' -add '
                            + str(v) + ' -thr ' + str(v + 0.001),
                            out_file=folder + '/' + str(n) + '.nii.gz'
                            ).run()
 
-        fsl.ImageMaths(in_file=folder + '/0.nii.gz', op_string=' -add '
-                       + folder + '/1' + ' -add ' + folder + '/2'
-                       + ' -add ' + folder + '/3' + ' -add ' + folder
-                       + '/4' + ' -add ' + folder + '/5' + ' -add '
-                       + folder + '/6' + ' -sub 1' + ' -thr 0',
-                       out_file=out_file).run()
+        fsl.ImageMaths(in_file=folder + '/0.nii.gz', op_string=' -add '+ folder + '/1', out_file=folder + '/ongoing.nii.gz').run()
 
-    def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False):
+        if self.mask_num > 1:         
+            for n in range(2, self.mask_num):
+                fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -add '
+                           + folder + '/' + str(n), out_file=folder + '/ongoing.nii.gz').run()
+
+        fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -sub 1' + ' -thr 0', out_file=out_file)
+
+        print "Made" + out_file
+
+    def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False, demeaned=False):
         """ get the importances with feature names given a tuple mask index
         Args:
             index: Can be an tuple index comparing two masks (2, 3),
@@ -191,11 +197,21 @@ class maskClassifier:
        
 
         if not isinstance(index, tuple): # If not a tuple (i.e. integer or None), get mean
-        #### DOESN"T WORK FOR NONE, IT TAKES THE FIRST ONE
-            fi = np.array(np.ma.masked_array(fi, np.equal(fi, None)).mean())
+            fi = np.ma.masked_array(fi, np.equal(fi, None))
+
+            if index is None:
+                fi = np.array([fi[col].mean() for col in range(0, fi.shape[0])]).mean(axis=0)
+            else:
+                fi = np.array(fi.mean())
 
         if absolute:
             fi = np.abs(fi)
+
+        if demeaned:
+            [fi_all, names] = zip(*self.get_importances(None, sort=False, relative=False, absolute=absolute, ranking=ranking))
+            fi = fi - np.array(fi_all)
+
+
 
         if relative:
             fi = 100.0 * (fi / fi.max())
@@ -256,32 +272,30 @@ class maskClassifier:
                          progress))
         sys.stdout.flush()
 
+        if progress == 100:
+            print
+
     def get_best_features(self, n, ranking=True):
         """ Gets the n best features across all comparisons from a RFE classifier """
 
         return self.get_importances(None, absolute=True, ranking=ranking)[-n:]
 
+    def topic_weights_feature(self, topic_weights, feature):
+        """ Returns topic weights for a feature in order of topic_weights
+        Best if that order is sorted """
+
+        return topic_weights[np.where(topic_weights == feature )[0]][:, 2]
+
+    def save_region_importance_plots(self, basename):
+        for i in range(1, self.mask_num):
+            self.plot_importances(i-1, file_name=basename+"_"+str(i)+".png", thresh=10)
+            self.plot_importances(None, file_name=basename+"_overall.png", thresh=05)
+
+    # def features_to_topics(self, topic_weights, importances):
+    #     topic_imps = np.array([topic_weights_feature(topic_weights, pair[1])*pair[0] for pair in importances]).mean(axis=0)
+
+    #     ## Then just zip back up to topic numbers
 
 
 
-dataset = Dataset.load('../data/dataset.pkl')
-
-masks = ['7Networks_Liberal_1.nii.gz', '7Networks_Liberal_2.nii.gz',
-         '7Networks_Liberal_3.nii.gz', '7Networks_Liberal_4.nii.gz',
-         '7Networks_Liberal_5.nii.gz', '7Networks_Liberal_6.nii.gz',
-         '7Networks_Liberal_7.nii.gz']
-
-rootdir = '../masks/Yeo_JNeurophysiol11_MNI152/standardized/'
-
-masklist = [rootdir + m for m in masks]
-
-import csv
-readfile = open('../data/reduced_features.csv', 'rbU')
-wr = csv.reader(readfile, quoting=False)
-reduced_features = [word[0] for word in wr]
-reduced_features = [word[2:-1] for word in reduced_features]
-
-param_grid={'max_features': np.arange(2, 140, 44),
-        'n_estimators': np.arange(5, 141, 50),
-        'learning_rate': np.arange(0.05, 1, 0.1)}
 
