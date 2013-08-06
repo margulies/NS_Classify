@@ -21,6 +21,17 @@ from sklearn.feature_selection import RFE
 from sklearn.metrics import zero_one_loss
 
 
+def shannons(x):
+    """ Returns Shannon's Diversity Index for an np.array """
+    x.astype('float')
+    x = (x / x.sum())
+
+    return ((x*np.log(x)).sum())*-1
+
+
+
+
+
 class MaskClassifier:
 
     def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), 
@@ -73,7 +84,7 @@ class MaskClassifier:
             index = (pairs[0][1], pairs[1][1]) # Tuple numeric index of pairs
             names = [pairs[0][0], pairs[1][0]] # Actual paths to masks
 
-            self.c_data[index] = classify.get_studies_by_regions(dataset, 
+            self.c_data[index] = classify.get_studies_by_regions(self.dataset, 
                 names, threshold=self.thresh, features=features, regularization='scale')
 
             if isinstance(self.classifier, RFE):
@@ -100,15 +111,16 @@ class MaskClassifier:
 
                 if self.param_grid: # Just get them if you used a grid
                     self.feature_importances[index] = \
-                    self.fit_clfs[index].fit(*self.c_data[index]).feature_importances_
+                    self.fit_clfs[index].fit(*self.c_data[index]).best_estimator_.feature_importances_
                 elif isinstance(self.classifier, GradientBoostingClassifier): # Refit if not param_grid
+
                     self.feature_importances[index] = self.fit_clfs[index].feature_importances_
 
                 elif isinstance(self.classifier, LinearSVC):
                     self.feature_importances[index] = self.fit_clfs[index].coef_[0]
 
 
-            self.dummy_score[index] = classify.classify_regions(dataset, names,
+            self.dummy_score[index] = classify.classify_regions(self.dataset, names,
                 method='Dummy' , threshold=self.thresh)['score']
 
             prog = prog + 1
@@ -130,7 +142,11 @@ class MaskClassifier:
                     self.diffs[j, b] = self.diffs[b, j]
                     self.fit_clfs[j, b] = self.fit_clfs[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
-                    self.feature_importances[j, b] = self.feature_importances[b, j] * -1
+                    if isinstance(self.classifier, LinearSVC):
+                        self.feature_importances[j, b] = self.feature_importances[b, j] * -1
+                    else:
+                        self.feature_importances[j, b] = self.feature_importances[b, j]
+                    
                     if self.feature_ranking is not None:
                         self.feature_ranking[j, b] = self.feature_ranking[b, j]
 
@@ -140,16 +156,40 @@ class MaskClassifier:
         return [self.diffs[k].mean() for k in range(0,
                 self.diffs.shape[0])]
 
-    def make_average_map(self, basename):
+    def get_mask_diversity(self):
 
-        out_file = basename + "AvgClass.nii.gz"
+        mask_shannons = []
+
+        for i in range(0, self.mask_num):
+            imps = []
+            for j in range(0, self.mask_num):
+                if i is not j:
+                    imp, name =  zip(*self.get_importances([i,j], relative=False, sort=False))
+
+                    imps.append(imp)
+
+            imps = np.array(imps)
+
+            s = []
+
+            for row in range(0, imps.shape[0]):
+                s.append(shannons(imps[row, :]))
+
+            mask_shannons.append(np.array(s).mean())
+
+
+        return mask_shannons
+
+       
+
+    def make_mask_map(self, out_file, data):
 
         import tempfile
         folder = tempfile.mkdtemp()
 
         (masks, num) = zip(*self.masklist)
 
-        for (n, v) in enumerate(self.get_mask_averages()):
+        for (n, v) in enumerate(data):
 
             fsl.ImageMaths(in_file=masks[n], op_string=' -add '
                            + str(v) + ' -thr ' + str(v + 0.001),
@@ -268,9 +308,14 @@ class MaskClassifier:
             pl.close()
 
     def update_progress(self, progress):
-        sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
+
+        if sys.stdout.__class__.__name__ == 'Logging':
+            sys.stdout.show('\r[{0}] {1}%'.format('#' * (progress / 10),
                          progress))
-        sys.stdout.flush()
+        else:
+            sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
+                             progress))
+            sys.stdout.flush()
 
         if progress == 100:
             print
@@ -286,10 +331,10 @@ class MaskClassifier:
 
         return topic_weights[np.where(topic_weights == feature )[0]][:, 2]
 
-    def save_region_importance_plots(self, basename):
+    def save_region_importance_plots(self, basename, thresh=20):
         for i in range(1, self.mask_num):
-            self.plot_importances(i-1, file_name=basename+"_"+str(i)+".png", thresh=10)
-            self.plot_importances(None, file_name=basename+"_overall.png", thresh=05)
+            self.plot_importances(i-1, file_name=basename+"_"+str(i)+".png", thresh=thresh)
+            self.plot_importances(None, file_name=basename+"_overall.png", thresh=thresh)
 
     # def features_to_topics(self, topic_weights, importances):
     #     topic_imps = np.array([topic_weights_feature(topic_weights, pair[1])*pair[0] for pair in importances]).mean(axis=0)
