@@ -1,0 +1,71 @@
+craddock_10
+Words
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%[] 2%[] 4%[] 6%[] 8%[#] 11%[#] 13%[#] 15%[#] 17%[##] 20%[##] 22%[##] 24%[##] 26%[##] 28%[###] 31%[###] 33%[###] 35%[###] 37%[####] 40%[####] 42%[####] 44%[####] 46%[####] 48%[#####] 51%[#####] 53%[#####] 55%[#####] 57%[######] 60%[######] 62%[######] 64%[######] 66%[######] 68%[#######] 71%[#######] 73%[#######] 75%[#######] 77%[########] 80%[########] 82%[########] 84%[########] 86%[########] 88%[#########] 91%[#########] 93%[#########] 95%[#########] 97%[##########] 100%
+Mask averages
+[0.10481100608293595, 0.087898516527996018, 0.12379284395413429, 0.23618638069876463, 0.17706194053910776, 0.21604822435408982, -0.00028353712564239812, 0.086032204904753967, 0.080395914301143054, 0.23367390597782758]
+Making average map...
+Made../results/craddock_10_GB_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, 3.2473039629959914, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/craddock_10_GB_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.134561740022
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%[] 2%[] 4%[] 6%[] 8%[#] 11%[#] 13%[#] 15%[#] 17%[##] 20%[##] 22%[##] 24%[##] 26%[##] 28%[###] 31%[###] 33%[###] 35%[###] 37%[####] 40%[####] 42%[####] 44%[####] 46%[####] 48%[#####] 51%[#####] 53%[#####] 55%[#####] 57%[######] 60%[######] 62%[######] 64%[######] 66%[######] 68%[#######] 71%[#######] 73%[#######] 75%[#######] 77%[########] 80%[########] 82%[########] 84%[########] 86%[########] 88%[#########] 91%[#########] 93%[#########] 95%[#########] 97%[##########] 100%
+Mask averages
+[0.041611012635264441, 0.054414413686035751, 0.046281911537287904, 0.095532846639657762, 0.045783921375704112, 0.10164997727962564, -0.0035884112638498752, -0.022032557578816274, 0.069911497362477759, 0.11213084301319595]
+Making average map...
+Made../results/craddock_10_SVM_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/craddock_10_SVM_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.0541695454687
+
+Topics
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%[] 2%[] 4%[] 6%[] 8%[#] 11%[#] 13%[#] 15%[#] 17%[##] 20%[##] 22%[##] 24%[##] 26%[##] 28%[###] 31%[###] 33%[###] 35%[###] 37%[####] 40%[####] 42%[####] 44%[####] 46%[####] 48%[#####] 51%[#####] 53%[#####] 55%[#####] 57%[######] 60%[######] 62%[######] 64%[######] 66%[######] 68%[#######] 71%[#######] 73%[#######] 75%[#######] 77%[########] 80%[########] 82%[########] 84%[########] 86%[########] 88%[#########] 91%[#########] 93%[#########] 95%[#########] 97%[##########] 100%
+Mask averages
+[0.030783523704060362, 0.069622706323847178, 0.00067999503483371726, 0.041447453188939276, 0.015999492984464625, -0.00011110440032007106, -0.10249138450892836, 0.00057426317286584587, -0.09202086342609217, -0.052488633370986332]
+Making average map...
+Made../results/craddock_10_GB_topics_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/craddock_10_GB_topics_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: -0.00880045512973
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%[] 2%[] 4%[] 6%[] 8%[#] 11%[#] 13%[#] 15%[#] 17%[##] 20%[##] 22%[##] 24%[##] 26%[##] 28%[###] 31%[###] 33%[###] 35%[###] 37%[####] 40%[####] 42%[####] 44%[####] 46%[####] 48%[#####] 51%[#####] 53%[#####] 55%[#####] 57%[######] 60%[######] 62%[######] 64%[######] 66%[######] 68%[#######] 71%[#######] 73%[#######] 75%[#######] 77%[########] 80%[########] 82%[########] 84%[########] 86%[########] 88%[#########] 91%[#########] 93%[#########] 95%[#########] 97%[##########] 100%
+Mask averages
+[-0.011999156292241927, -0.017308652247967134, -0.0038329725829725678, 0.048766957157050032, -0.027964256568165227, 0.010455187732909179, 0.030512364503592578, 0.10080155494427524, 0.022249787854363018, 0.12340450036528471]
+Making average map...
+Made../results/craddock_10_SVM_topics_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/craddock_10_SVM_topics_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.0275085314866
+craddock_100
+Words
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%[] 0%
+[0;34mIn [[1;34m11[0;34m]: [0m
+[0;34mIn [[1;34m12[0;34m]: [0m

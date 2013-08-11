@@ -32,10 +32,8 @@ for a in range(0, 6):
 			linSVM_abs[a, b] = np.abs(np.array(linSVM_imp[a, b]))
 
 # Plots for each region and all regions of important features
-for i in range(1, 7):
-    yeoClass.plot_importances(i-1, file_name="../results/Yeo_SVMcoef_"+str(i)+".png", thresh=10)
-yeoClass.plot_importances(None, file_name="../results/Yeo_SVMcoef_overall.png", thresh=05)
 
-        imps = [(i, yeoClass.feature_names[num]) for (num, i) in
-                enumerate(fi)]
+
+
+# param_grid={'max_features': np.arange(2, 140, 44), 'n_estimators': np.arange(5, 141, 50),'learning_rate': np.arange(0.05, 1, 0.1)}
 

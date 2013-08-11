@@ -1,0 +1,24 @@
+2013-07-30_13:24:54
+Yeo 7-Class
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%
+[0;34mIn [[1;34m7[0;34m]: [0m
+[0;34mIn [[1;34m8[0;34m]: [0m
+[0;34mIn [[1;34m9[0;34m]: [0m
+[0;34mIn [[1;34m10[0;34m]: [0m
+[0;34mIn [[1;34m10[0;34m]: [0mDo you really want to exit ([y]/n)? 2013-07-30_13:25:46
+Yeo 7-Class
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Mask averages
+Making average map...
+Made../results/Yeo_SVMcoefAvgClass.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.195554039037
+Retesting...
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Pearson r of test and retest SVM weights: 1.0

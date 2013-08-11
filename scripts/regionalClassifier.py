@@ -25,11 +25,9 @@ def shannons(x):
     """ Returns Shannon's Diversity Index for an np.array """
     x.astype('float')
     x = (x / x.sum())
-
-    return ((x*np.log(x)).sum())*-1
-
-
-
+    x = x*np.log(x)
+    x = np.ma.masked_array(x, np.isnan(x))
+    return ((x).sum())*-1
 
 
 class MaskClassifier:
@@ -156,32 +154,6 @@ class MaskClassifier:
         return [self.diffs[k].mean() for k in range(0,
                 self.diffs.shape[0])]
 
-    def get_mask_diversity(self):
-
-        mask_shannons = []
-
-        for i in range(0, self.mask_num):
-            imps = []
-            for j in range(0, self.mask_num):
-                if i is not j:
-                    imp, name =  zip(*self.get_importances([i,j], relative=False, sort=False))
-
-                    imps.append(imp)
-
-            imps = np.array(imps)
-
-            s = []
-
-            for row in range(0, imps.shape[0]):
-                s.append(shannons(imps[row, :]))
-
-            mask_shannons.append(np.array(s).mean())
-
-
-        return mask_shannons
-
-       
-
     def make_mask_map(self, out_file, data):
 
         import tempfile
@@ -203,7 +175,7 @@ class MaskClassifier:
                 fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -add '
                            + folder + '/' + str(n), out_file=folder + '/ongoing.nii.gz').run()
 
-        fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -sub 1' + ' -thr 0', out_file=out_file)
+        fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -sub 1' + ' -thr 0', out_file=out_file).run()
 
         print "Made" + out_file
 
@@ -309,12 +281,11 @@ class MaskClassifier:
 
     def update_progress(self, progress):
 
+        display = '\r[{0}] {1}%'.format('#' * (progress / 10), progress)
         if sys.stdout.__class__.__name__ == 'Logging':
-            sys.stdout.show('\r[{0}] {1}%'.format('#' * (progress / 10),
-                         progress))
+            sys.stdout.show(display)
         else:
-            sys.stdout.write('\r[{0}] {1}%'.format('#' * (progress / 10),
-                             progress))
+            sys.stdout.write(display)
             sys.stdout.flush()
 
         if progress == 100:
@@ -335,6 +306,52 @@ class MaskClassifier:
         for i in range(1, self.mask_num):
             self.plot_importances(i-1, file_name=basename+"_"+str(i)+".png", thresh=thresh)
             self.plot_importances(None, file_name=basename+"_overall.png", thresh=thresh)
+
+    def importance_stats(self, method='var', axis=0):
+        """ Returns various statics on the importances for each masks
+        These funcions are intended to be used to summarize how consistent or correlated 
+        the importance matrices are within each region 
+
+        axis = 0 applies within regions
+            i.e. high variance means a sparser solution or higher entropy within a classifaciton
+        axis = 1 is equivalent to applying to within features
+            i.e. high variance means each feature is used differently across comparisons
+        """
+
+        results = []
+
+        for i in range(0, self.mask_num):
+            region_data = np.array(filter(None, self.feature_importances[i]))
+
+            if method == 'var':
+                results.append(np.apply_along_axis(np.var, axis, region_data).mean())
+                
+            elif method == 'cor':
+
+                if axis == 0:
+                    axis = 1
+                else:
+                    axis = 0
+
+                x = np.corrcoef(region_data, rowvar=axis).flatten()
+                results.append(np.ma.masked_array(x, np.equal(x, 1)).mean())
+
+            elif method == 'shannons':
+                results.append(np.apply_along_axis(shannons, axis, region_data).mean())
+
+        return results
+
+    def accuracy_stats(self, method='shannons'):
+        results = []
+        for row in range(0, self.mask_num):
+            if method == 'shannons':
+                results.append(shannons(self.diffs[row]))
+            if method == 'var':
+                results.append(self.diffs[row].var())
+
+        return results
+
+
 
     # def features_to_topics(self, topic_weights, importances):
     #     topic_imps = np.array([topic_weights_feature(topic_weights, pair[1])*pair[0] for pair in importances]).mean(axis=0)

@@ -1,6 +1,8 @@
 execfile("regionalClassifier.py")
 import glob
 import sys
+import datetime
+now = datetime.datetime.now()
 
 #### Logging
 
@@ -21,7 +23,7 @@ class Logging():
     	self.stdout.flush()
     	self.log.flush()
 
-    def show(self):
+    def show(self, text):
     	self.stdout.write(text)
     	self.stdout.flush()
 
@@ -37,12 +39,14 @@ def pipeline(clf, basename, features=None, retest=False):
 	print "Making average map..."
 	clf.make_mask_map(basename + "AvgClass.nii.gz", clf.get_mask_averages())
 
-	print "Average Shannon's Diversity"
-
-	print(clf.get_mask_diversity())
 	print "Making Shannon's Diversity Map..."
 
-	clf.make_mask_map(basename + "Shannons.nii.gz", clf.get_mask_diversity())
+	clf.make_mask_map(basename + "imps_shannons.nii.gz", clf.importance_stats(method='shannons'))
+	clf.make_mask_map(basename + "imps_var.nii.gz", clf.importance_stats(method='var'))
+	clf.make_mask_map(basename + "imps_cor.nii.gz", clf.importance_stats(method='cor'))
+	clf.make_mask_map(basename + "clf_shannons.nii.gz", clf.accuracy_stats(method='shannons'))
+	clf.make_mask_map(basename + "clf_var.nii.gz", clf.accuracy_stats(method='var'))
+
 
 	print "Making region importance plots..."
 	clf.save_region_importance_plots(basename)
@@ -74,11 +78,7 @@ def pipeline(clf, basename, features=None, retest=False):
 
 ### Setup
 
-# Logging
-import datetime
-now = datetime.datetime.now()
-oldstdout = sys.stdout
-sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
+
 
 # Load regular database and topic database
 dataset = Dataset.load('../data/dataset.pkl')
@@ -108,6 +108,11 @@ reduced_topics  = ["topic_" + str(int(topic[0])+1) for topic in twr]
 # Analyses  #
 #############
 
+# Logging
+
+# oldstdout = sys.stdout
+# sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
+
 def complete_analysis(name, masklist):
 	print name
 	print "Words"
@@ -128,16 +133,17 @@ def complete_analysis(name, masklist):
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
-# complete_analysis("Yeo17", yeo_17_masks)
+# # complete_analysis("Yeo17", yeo_17_masks)
 
-craddock_masks.pop(1)
-for name, masks in craddock_masks:
-	complete_analysis(name, masks)
+# craddock_masks.pop(1)
+# # for name, masks in craddock_masks:
+# # 	complete_analysis(name, masks)
 
+# complete_analysis(*craddock_masks[6])
 
-# End  Logging
-sys.stdout.close()
-sys.stdout = oldstdout
+# # End  Logging
+# sys.stdout.close()
+# sys.stdout = oldstdout
 
 
 

@@ -1,0 +1,12 @@
+craddock_10
+Words
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%
+[0;34mIn [[1;34m54[0;34m]: [0m
+[0;34mIn [[1;34m55[0;34m]: [0m
+[0;34mIn [[1;34m56[0;34m]: [0m
+[0;34mIn [[1;34m57[0;34m]: [0m
+[0;34mIn [[1;34m58[0;34m]: [0mDo you really want to exit ([y]/n)? 

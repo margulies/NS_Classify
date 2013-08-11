@@ -1,0 +1,61 @@
+Yeo7
+Words
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Mask averages
+[0.30613305429055543, 0.28442373529290677, 0.29802101528781638, 0.27334072359617556, 0.081605551466708795, 0.31528756341736602, 0.25588064789097131]
+Making average map...
+Made../results/Yeo7_GB_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[3.3814845618521709, 3.4185162146080672, 3.4274048681018683, 3.437951064770743, 3.5300263060702997, 3.3194355447883637, 3.4500918212860441]
+Making Shannon's Diversity Map...
+Made../results/Yeo7_GB_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.259241755892
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Mask averages
+[0.18416917637245567, 0.24721923914349622, 0.21452825944515905, 0.18282225450174674, 0.047130567405480328, 0.22383281094024765, 0.17987327120585872]
+Making average map...
+Made../results/Yeo7_SVM_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/Yeo7_SVM_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.182796511288
+Topics
+Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
+              max_depth=3, max_features=None, min_samples_leaf=1,
+              min_samples_split=2, n_estimators=100, random_state=None,
+              subsample=1.0, verbose=0)
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Mask averages
+[0.056551160255906924, 0.061033719669417646, 0.094662777321446498, 0.054035783505057992, 0.057555073308471739, 0.038764186507818377, 0.058128653695172207]
+Making average map...
+Made../results/Yeo7_GB_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, 4.7335537792135458, nan]
+Making Shannon's Diversity Map...
+Made../results/Yeo7_GB_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: 0.0601044791805
+Classifier: LinearSVC(C=1.0, class_weight=auto, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss=l2, multi_class=ovr, penalty=l2,
+     random_state=None, tol=0.0001, verbose=0)
+[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%[####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
+Mask averages
+[0.028769034676323395, -0.04235163363177008, -0.036867564856295609, -0.024415493949806393, -0.054936233169800286, -0.02822278571812455, -0.014408096476280996]
+Making average map...
+Made../results/Yeo7_SVM_words_AvgClass.nii.gz
+Average Shannon's Diversity
+[nan, nan, nan, nan, nan, nan, nan]
+Making Shannon's Diversity Map...
+Made../results/Yeo7_SVM_words_Shannons.nii.gz
+Making region importance plots...
+Overall accuracy above baseline: -0.0246332533037
