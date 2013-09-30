@@ -18,17 +18,71 @@ from sklearn.svm import SVC
 from sklearn.svm import LinearSVC
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import RFE
-from sklearn.metrics import zero_one_loss
+
+import matplotlib.pyplot as plt
 
 
 def shannons(x):
     """ Returns Shannon's Diversity Index for an np.array """
-    x.astype('float')
-    x = (x / x.sum())
-    x = x*np.log(x)
-    x = np.ma.masked_array(x, np.isnan(x))
-    return ((x).sum())*-1
+    if np.isnan(x.mean()) or x.mean() == 0.0:
+        return 0.0
+    else:
+        x = x.astype('float')
+        x = (x / x.sum())
+        x = x*np.log(x)
+        x = np.ma.masked_array(x, np.isnan(x))
+        return ((x).sum())*-1
 
+
+def heat_map(data, x_labels, y_labels, file_name=None, add_diagonal=False):
+
+    if add_diagonal:
+        new_data = []
+        for i in range(0, data.shape[1]):
+            x = list(data[:,i])
+            x.insert(i, 0)
+            new_data.append(x)
+
+        data = np.array(new_data)
+
+    fig, ax = plt.subplots()
+    heatmap = ax.pcolor(data, cmap=plt.cm.YlOrRd, alpha=0.8)
+
+
+    fig = plt.gcf()
+
+    fig.set_size_inches(8,11)
+
+    # turn off the frame
+    ax.set_frame_on(False)
+
+    # put the major ticks at the middle of each cell
+    ax.set_yticks(np.arange(data.shape[0])+0.5, minor=False)
+    ax.set_xticks(np.arange(data.shape[1])+0.5, minor=False)
+
+    # want a more natural, table-like display
+    ax.invert_yaxis()
+    ax.xaxis.tick_top()
+
+    ax.set_yticklabels(y_labels, minor=False) 
+    ax.set_xticklabels(x_labels, minor=False) 
+
+    ax.grid(False)
+
+    # Turn off all the ticks
+    ax = plt.gca()
+
+    for t in ax.xaxis.get_major_ticks(): 
+        t.tick1On = False 
+        t.tick2On = False 
+    for t in ax.yaxis.get_major_ticks(): 
+        t.tick1On = False 
+        t.tick2On = False  
+
+    if file_name is None:
+        fig.show()
+    else:
+        fig.savefig(file_name)
 
 class MaskClassifier:
 
@@ -36,6 +90,8 @@ class MaskClassifier:
         thresh=0.08, param_grid=None, cv=None):
 
         self.masklist = zip(masks, range(0, len(masks)))
+
+        self.mask_names = [os.path.basename(os.path.splitext(os.path.splitext(mask)[0])[0]) for mask in masks]
 
         self.mask_num = len(self.masklist)
 
@@ -61,7 +117,7 @@ class MaskClassifier:
         else:
             self.feature_ranking = None
 
-    def classify(self, features=None):
+    def classify(self, features=None, scoring='accuracy', dummy = True):
 
         iters = list(itertools.combinations(self.masklist, 2))
         prog = 0.0
@@ -74,8 +130,13 @@ class MaskClassifier:
         else:
             self.feature_names = self.dataset.get_feature_names()
 
-        self.feature_importances = np.empty((self.mask_num,
-            self.mask_num), object)
+
+        self.feature_importances = np.ma.masked_array(np.zeros((self.mask_num,
+            self.mask_num, len(self.feature_names))))
+
+        i, j, k = np.meshgrid(*map(np.arange, self.feature_importances.shape), indexing='ij')
+
+        self.feature_importances.mask = (i == j)
 
         for pairs in iters:
 
@@ -101,11 +162,13 @@ class MaskClassifier:
                 output = classify.classify_regions(self.dataset, names,
                     classifier=self.classifier,
                     param_grid=self.param_grid, threshold=self.thresh,
-                    features=features, output='summary_clf')
+                    features=features, output='summary_clf', scoring=scoring)
 
                 self.class_score[index] = output['score']
 
                 self.fit_clfs[index] = output['clf'].fit(*self.c_data[index])
+
+                # import ipdb; ipdb.set_trace()
 
                 if self.param_grid: # Just get them if you used a grid
                     self.feature_importances[index] = \
@@ -124,20 +187,24 @@ class MaskClassifier:
             prog = prog + 1
             self.update_progress(int(prog / total * 100))
 
-            self.class_score = np.ma.masked_array(self.class_score,
-                self.class_score == 0)
-            self.dummy_score = np.ma.masked_array(self.dummy_score,
-                self.dummy_score == 0)
+        self.class_score = np.ma.masked_array(self.class_score,
+            self.class_score == 0)
+        self.dummy_score = np.ma.masked_array(self.dummy_score,
+            self.dummy_score == 0)
 
-            self.diffs = self.class_score - self.dummy_score
+        if dummy:
+            self.final_score = self.class_score - self.dummy_score
+        else:
+            self.final_score = self.class_score
+
 
 
         # Make results fill in across diagonal
 
         for j in range(0, self.mask_num):
             for b in range(0, self.mask_num):
-                if self.diffs.mask[j, b] and not j == b:
-                    self.diffs[j, b] = self.diffs[b, j]
+                if self.final_score.mask[j, b] and not j == b:
+                    self.final_score[j, b] = self.final_score[b, j]
                     self.fit_clfs[j, b] = self.fit_clfs[b, j]
                     self.c_data[j, b] = self.c_data[b, j]
                     if isinstance(self.classifier, LinearSVC):
@@ -151,13 +218,16 @@ class MaskClassifier:
         self.status = 1
 
     def get_mask_averages(self):
-        return [self.diffs[k].mean() for k in range(0,
-                self.diffs.shape[0])]
+
+        return [self.final_score[k].mean() for k in range(0,
+            self.final_score.shape[0])]
 
     def make_mask_map(self, out_file, data):
 
         import tempfile
         folder = tempfile.mkdtemp()
+
+        data = list(data)
 
         (masks, num) = zip(*self.masklist)
 
@@ -204,17 +274,16 @@ class MaskClassifier:
         else:
             fi = self.feature_importances
 
-        if index: # If None, take it out and get all
+        if index is not None: # If None, take it out and get all
             fi = fi[index]
        
 
         if not isinstance(index, tuple): # If not a tuple (i.e. integer or None), get mean
-            fi = np.ma.masked_array(fi, np.equal(fi, None))
 
             if index is None:
-                fi = np.array([fi[col].mean() for col in range(0, fi.shape[0])]).mean(axis=0)
+                fi = fi.mean(axis=0).mean(axis=0)
             else:
-                fi = np.array(fi.mean())
+                fi = fi.mean(axis=0)
 
         if absolute:
             fi = np.abs(fi)
@@ -222,7 +291,6 @@ class MaskClassifier:
         if demeaned:
             [fi_all, names] = zip(*self.get_importances(None, sort=False, relative=False, absolute=absolute, ranking=ranking))
             fi = fi - np.array(fi_all)
-
 
 
         if relative:
@@ -304,52 +372,77 @@ class MaskClassifier:
 
     def save_region_importance_plots(self, basename, thresh=20):
         for i in range(1, self.mask_num):
-            self.plot_importances(i-1, file_name=basename+"_"+str(i)+".png", thresh=thresh)
-            self.plot_importances(None, file_name=basename+"_overall.png", thresh=thresh)
+            self.plot_importances(i-1, file_name=basename+"_imps_"+str(i)+".png", thresh=thresh)
+            self.plot_importances(None, file_name=basename+"_imps_overall.png", thresh=thresh)
 
-    def importance_stats(self, method='var', axis=0):
+    def importance_stats(self, method='var', axis=0, average=True):
         """ Returns various statics on the importances for each masks
         These funcions are intended to be used to summarize how consistent or correlated 
         the importance matrices are within each region 
 
-        axis = 0 applies within regions
-            i.e. high variance means a sparser solution or higher entropy within a classifaciton
-        axis = 1 is equivalent to applying to within features
-            i.e. high variance means each feature is used differently across comparisons
+        axis = 0 applies across regions
+        shape is len(features)
+        axis = 1 is equivalent to applying to within regions
+
+        average: average results within axis of interest?
         """
 
         results = []
+
+        if axis == 0:
+            rev_axis = 1
+        else:
+            rev_axis = 0
 
         for i in range(0, self.mask_num):
             region_data = np.array(filter(None, self.feature_importances[i]))
 
             if method == 'var':
-                results.append(np.apply_along_axis(np.var, axis, region_data).mean())
-                
+                results.append(np.apply_along_axis(np.var, axis, region_data))
+
             elif method == 'cor':
 
-                if axis == 0:
-                    axis = 1
-                else:
-                    axis = 0
-
-                x = np.corrcoef(region_data, rowvar=axis).flatten()
-                results.append(np.ma.masked_array(x, np.equal(x, 1)).mean())
+                x = np.corrcoef(region_data, rowvar=rev_axis).flatten()
+                results.append(np.ma.masked_array(x, np.equal(x, 1)))
 
             elif method == 'shannons':
-                results.append(np.apply_along_axis(shannons, axis, region_data).mean())
+                results.append(np.apply_along_axis(shannons, axis, region_data))
 
-        return results
+        if average:
+            return np.array(results).mean(axis=1)
+        else:
+            return np.array(results)
 
     def accuracy_stats(self, method='shannons'):
         results = []
         for row in range(0, self.mask_num):
             if method == 'shannons':
-                results.append(shannons(self.diffs[row]))
+                results.append(shannons(self.final_score[row]))
             if method == 'var':
-                results.append(self.diffs[row].var())
+                results.append(self.final_score[row].var())
 
         return results
+
+    def region_heatmap(self, basename=None):
+
+        heat_map(self.feature_importances.mean(axis=0).T, range(0,self.mask_num), self.feature_names, basename + "imps_hm_overall.png")
+        for i in range(0, self.mask_num):
+
+            fi = self.feature_importances[i].T
+
+            if basename is None:
+                file_name = None
+            else:
+                file_name = basename + "imps_hm_" + str(i) + ".png"
+
+            heat_map(fi, range(0,self.mask_num), self.feature_names, file_name)
+
+    def save(self, filename, keep_dataset=False):
+        if not keep_dataset:
+            self.datset= []
+        import cPickle
+        cPickle.dump(self, open(filename, 'wb'), -1)
+
 
 
 
@@ -357,6 +450,7 @@ class MaskClassifier:
     #     topic_imps = np.array([topic_weights_feature(topic_weights, pair[1])*pair[0] for pair in importances]).mean(axis=0)
 
     #     ## Then just zip back up to topic numbers
+
 
 
 
