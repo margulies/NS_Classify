@@ -180,26 +180,25 @@ def complete_analysis(name, masklist, features=None):
 	print name
 	print "Words"
 
-	for i in np.linspace(0.02, .1, 4).astype('float'):
-	# i = 0.06
+	i = 0.05
 
-		print "Thresh = " + str(i)
+	print "Thresh = " + str(i)
 
-		# pipeline(MaskClassifier(dataset, masklist, thresh=i, param_grid=None, cv='4-Fold'), "../results/"+name+"_GB_words_thresh_"+str(i), features=features, scoring='accuracy')
+	# pipeline(MaskClassifier(dataset, masklist, thresh=i, param_grid=None, cv='4-Fold'), "../results/"+name+"_GB_words_thresh_"+str(i), features=features, scoring='accuracy')
 
-		# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
-		# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_words_thresh_"+str(i), features=features, scoring='accuracy')
+	# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
+	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_words_thresh_"+str(i), features=features, scoring='accuracy')
 
-		# print
-		# print "Topics"
+	# print
+	# print "Topics"
 
 
-		pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(10, 35, 3).astype(int), 
-			'n_estimators': np.round(np.linspace(10, 141, 3)).astype(int),'learning_rate': np.linspace(0.1, 1, 3).astype('float')}, cv='3-Fold',thresh=i), 
-			"../results/"+name+"_GB_topics_reduced_grid_"+str(i), scoring='accuracy')
+	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(10, 24, 3).astype(int), 
+		'n_estimators': np.round(np.linspace(10, 141, 3)).astype(int),'learning_rate': np.linspace(0.1, 1, 3).astype('float')}, cv='3-Fold',thresh=i), 
+		"../results/"+name+"_GB_topics_reduced_5_grid_"+str(i), scoring='accuracy', features=features)
 
-		# # pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
-		# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_topics_", scoring='accuracy;')
+	# # pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
+	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_topics_", scoring='accuracy;')
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
@@ -209,9 +208,12 @@ def complete_analysis(name, masklist, features=None):
 # # for name, masks in craddock_masks:
 # # 	complete_analysis(name, masks)
 
-features = dataset.get_feature_names()
+# features = dataset.get_feature_names()
 
-shuffle(features)
+# shuffle(features)
+
+reduced_topics_2.remove('topic_5')
+
 
 complete_analysis(*craddock_masks[3], features=reduced_topics_2)
 
