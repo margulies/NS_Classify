@@ -171,14 +171,21 @@ class MaskClassifier:
                 # import ipdb; ipdb.set_trace()
 
                 if self.param_grid: # Just get them if you used a grid
-                    self.feature_importances[index] = \
-                    self.fit_clfs[index].fit(*self.c_data[index]).best_estimator_.feature_importances_
-                elif isinstance(self.classifier, GradientBoostingClassifier): # Refit if not param_grid
 
-                    self.feature_importances[index] = self.fit_clfs[index].feature_importances_
-
+                    if isinstance(self.fit_clfs[index].estimator, LinearSVC):
+                        self.feature_importances[index] = self.fit_clfs[index].fit(*self.c_data[index]).best_estimator_.coef_[0]
+                    else:
+                        try:
+                            self.feature_importances[index] = self.fit_clfs[index].feature_importances_
+                        except AttributeError:
+                            print "No feature importances"
                 elif isinstance(self.classifier, LinearSVC):
                     self.feature_importances[index] = self.fit_clfs[index].coef_[0]
+                else:
+                    try:
+                        self.feature_importances[index] = self.fit_clfs[index].feature_importances_
+                    except AttributeError:
+                        print "No feature importances"
 
 
             self.dummy_score[index] = classify.classify_regions(self.dataset, names,

@@ -7,6 +7,8 @@ import csv
 now = datetime.datetime.now()
 
 from random import shuffle
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.svm import NuSVC
 
 #### Logging
 
@@ -43,6 +45,9 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	clf.save(basename+".pkl")
 
 	print "../clfs/"+basename+".pkl"
+
+	print "Overall accuracy above baseline: " + str(clf.final_score.mean())
+
 
 	print "Mask averages"
 	print(clf.get_mask_averages())
@@ -108,8 +113,6 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	print "Making region heatmaps..."
 	clf.region_heatmap(basename)
 
-	print "Overall accuracy above baseline: " + str(clf.final_score.mean())
-
 	if retest:
 		print "Retesting..."
 
@@ -145,6 +148,11 @@ dataset_topics_40 = Dataset.load('../data/pickled_topics_40.pkl')
 yeo_7_masks =  glob.glob('../masks/Yeo_JNeurophysiol11_MNI152/standardized/7Networks_Liberal_*')
 yeo_17_masks =  glob.glob('../masks/Yeo_JNeurophysiol11_MNI152/standardized/17Networks_Liberal_*')
 
+# Neurosynth cluser masks
+ns_dir = "../masks/ns_kmeans_all/"
+ns_kmeans_masks = [["ns_k_" + folder, glob.glob(ns_dir + folder +"/*")] for folder in os.walk(ns_dir).next()[1]]
+
+
 # Mask lists for 10-100 craddock
 craddock_dir = "../masks/craddock/scorr_05_2level/"
 craddock_masks = [["craddock_" + folder, glob.glob(craddock_dir + folder +"/*")] for folder in os.walk(craddock_dir).next()[1]]
@@ -178,27 +186,32 @@ sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 def complete_analysis(name, masklist, features=None):
 	print name
-	print "Words"
 
 	i = 0.05
 
 	print "Thresh = " + str(i)
 
-	# pipeline(MaskClassifier(dataset, masklist, thresh=i, param_grid=None, cv='4-Fold'), "../results/"+name+"_GB_words_thresh_"+str(i), features=features, scoring='accuracy')
+	# print "Words"
+
+	# pipeline(MaskClassifier(dataset, masklist, thresh=i, 
+	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_GB_words_reduced_thresh_"+str(i), features=None)
 
 	# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_words_thresh_"+str(i), features=features, scoring='accuracy')
+	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_words_reduced_thresh_"+str(i), features=None)
 
 	# print
-	# print "Topics"
+	print "Topics"
 
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
+	# 	'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')}, cv='4-Fold',thresh=i), 
+	# 	"../results/"+name+"_GB_topics_reduced_grid_thresh_"+str(i), features=features)
 
-	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(10, 24, 3).astype(int), 
-		'n_estimators': np.round(np.linspace(10, 141, 3)).astype(int),'learning_rate': np.linspace(0.1, 1, 3).astype('float')}, cv='3-Fold',thresh=i), 
-		"../results/"+name+"_GB_topics_reduced_5_grid_"+str(i), scoring='accuracy', features=features)
+	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(),
+		param_grid=None, cv='3-Fold',thresh=i),
+		"../results/"+name+"_ET_grid_topics_reduced_thresh_"+str(i), features=features)
 
-	# # pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_topics_", scoring='accuracy;')
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
+	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='3-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
@@ -212,13 +225,16 @@ def complete_analysis(name, masklist, features=None):
 
 # shuffle(features)
 
-reduced_topics_2.remove('topic_5')
+# reduced_topics_2.remove('topic_5')
 
 
-complete_analysis(*craddock_masks[3], features=reduced_topics_2)
+complete_analysis(*ns_kmeans_masks[0], features=reduced_topics_2)
 
 
 # complete_analysis("yeo7", yeo_7_masks)
+
+# # {'max_features': np.linspace(10, 24, 3).astype(int), 
+# 		'n_estimators': np.round(np.linspace(10, 141, 3)).astype(int),'learning_rate': np.linspace(0.1, 1, 3).astype('float')}
 
 
 # End  Logging
