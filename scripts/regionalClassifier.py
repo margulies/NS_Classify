@@ -178,14 +178,14 @@ class MaskClassifier:
                         try:
                             self.feature_importances[index] = self.fit_clfs[index].feature_importances_
                         except AttributeError:
-                            print "No feature importances"
+                            pass
                 elif isinstance(self.classifier, LinearSVC):
                     self.feature_importances[index] = self.fit_clfs[index].coef_[0]
                 else:
                     try:
                         self.feature_importances[index] = self.fit_clfs[index].feature_importances_
                     except AttributeError:
-                        print "No feature importances"
+                        pass
 
 
             self.dummy_score[index] = classify.classify_regions(self.dataset, names,
