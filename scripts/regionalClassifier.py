@@ -21,6 +21,8 @@ from sklearn.feature_selection import RFE
 
 import matplotlib.pyplot as plt
 
+from scipy import stats
+
 
 def shannons(x):
     """ Returns Shannon's Diversity Index for an np.array """
@@ -256,15 +258,15 @@ class MaskClassifier:
 
         print "Made" + out_file
 
-    def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False, demeaned=False):
+    def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False, demeaned=False, zscore=False):
         """ get the importances with feature names given a tuple mask index
         Args:
             index: Can be an tuple index comparing two masks (2, 3),
                 an integer index (i.e. average for mask 2),
                 or None, which indicates overall average 
-
             sort: Boolean indicating if output should be sorted by importances
             relative: Should importances by normalized by highest importances
+            demeaned: Demeans with respect to mean importance for entire brain
 
         Output:
             A list of tuples with importance feature pairs
@@ -302,6 +304,9 @@ class MaskClassifier:
 
         if relative:
             fi = 100.0 * (fi / fi.max())
+
+        if zscore:
+            fi = stats.zscore(fi)
 
         imps = [(i, self.feature_names[num]) for (num, i) in
                 enumerate(fi)]
@@ -430,7 +435,12 @@ class MaskClassifier:
 
         return results
 
-    def region_heatmap(self, basename=None):
+    def region_heatmap(self, basename=None, zscore=False):
+
+        fi = self.feature_importances.mean(axis=0).T
+
+        if zscore:
+            fi = np.apply_along_aix(stats.zscore, 0, fi)
 
         heat_map(self.feature_importances.mean(axis=0).T, range(0,self.mask_num), self.feature_names, basename + "imps_hm_overall.png")
         for i in range(0, self.mask_num):

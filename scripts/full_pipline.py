@@ -4,14 +4,13 @@ import sys
 import datetime
 import csv
 
-now = datetime.datetime.now()
-
 from random import shuffle
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.svm import NuSVC
 
-#### Logging
+now = datetime.datetime.now()
 
+#### Logging
 class Logging():
     def __init__(self, logfile):
         self.stdout = sys.stdout
@@ -53,7 +52,7 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	print(clf.get_mask_averages())
 
 	print "Making average map..."
-	clf.make_mask_map(basename + "AvgClass.nii.gz", clf.get_mask_averages())
+	clf.make_mask_map(basename + "_AvgClass.nii.gz", clf.get_mask_averages())
 
 	# print "Making various importance stat brain maps..."
 
@@ -111,7 +110,7 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	# clf.save_region_importance_plots(basename)
 
 	print "Making region heatmaps..."
-	clf.region_heatmap(basename)
+	clf.region_heatmap(basename, zscore=True)
 
 	if retest:
 		print "Retesting..."
@@ -165,9 +164,9 @@ reduced_features = [word[2:-1] for word in reduced_features]
 
 # Import reduced topic features
 twr = csv.reader(open('../data/reduced_topic_keys.csv', 'rbU'))
-reduced_topics  = ["topic_" + str(int(topic[0])+1) for topic in twr]
+reduced_topics  = ["topic_" + str(int(topic[0])) for topic in twr]
 
-reduced_topics_2 = ["topic_" + str(int(topic[0])+1) for topic in csv.reader(open('../data/topic_notjunk.txt', 'rbU'), quoting=False)]
+reduced_topics_2 = ["topic_" + str(int(topic[0])) for topic in csv.reader(open('../data/topic_notjunk.txt', 'rbU'), quoting=False)]
 
 features = dataset.get_feature_names()
 
@@ -202,13 +201,11 @@ def complete_analysis(name, masklist, features=None):
 	# print
 	print "Topics"
 
-	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
-	# 	'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')}, cv='4-Fold',thresh=i), 
-	# 	"../results/"+name+"_GB_topics_reduced_grid_thresh_"+str(i), features=features)
+	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, cv='4-Fold',thresh=i), 
+		"../results/"+name+"_GB_topics_reduced_thresh_"+str(i), features=features)
 
-	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(),
-		param_grid=None, cv='3-Fold',thresh=i),
-		"../results/"+name+"_ET_grid_topics_reduced_thresh_"+str(i), features=features)
+	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.2), cv='4-Fold',thresh=i),
+		"../results/"+name+"_NuSVC_grid_topics_reduced_thresh_"+str(i), features=features)
 
 	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
 	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='3-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
