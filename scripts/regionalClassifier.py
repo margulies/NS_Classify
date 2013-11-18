@@ -36,16 +36,7 @@ def shannons(x):
         return ((x).sum())*-1
 
 
-def heat_map(data, x_labels, y_labels, file_name=None, add_diagonal=False):
-
-    if add_diagonal:
-        new_data = []
-        for i in range(0, data.shape[1]):
-            x = list(data[:,i])
-            x.insert(i, 0)
-            new_data.append(x)
-
-        data = np.array(new_data)
+def heat_map(data, x_labels, y_labels, file_name=None):
 
     fig, ax = plt.subplots()
     heatmap = ax.pcolor(data, cmap=plt.cm.YlOrRd, alpha=0.8)
@@ -132,7 +123,7 @@ class MaskClassifier:
         else:
             self.feature_names = self.dataset.get_feature_names()
 
-
+        # Make feature importance grid w/ masked diagonals
         self.feature_importances = np.ma.masked_array(np.zeros((self.mask_num,
             self.mask_num, len(self.feature_names))))
 
@@ -206,10 +197,7 @@ class MaskClassifier:
         else:
             self.final_score = self.class_score
 
-
-
         # Make results fill in across diagonal
-
         for j in range(0, self.mask_num):
             for b in range(0, self.mask_num):
                 if self.final_score.mask[j, b] and not j == b:
@@ -226,10 +214,15 @@ class MaskClassifier:
 
         self.status = 1
 
-    def get_mask_averages(self):
+    def get_mask_averages(self, precision=None):
 
-        return [self.final_score[k].mean() for k in range(0,
+        averages = [self.final_score[k].mean() for k in range(0,
             self.final_score.shape[0])]
+
+        if precision is not None:
+            averages = [round(x, precision) for x in averages]
+
+        return averages
 
     def make_mask_map(self, out_file, data):
 
@@ -420,10 +413,17 @@ class MaskClassifier:
             elif method == 'shannons':
                 results.append(np.apply_along_axis(shannons, axis, region_data))
 
+        results = np.array(results)
+
+        if axis == 1:
+            results = np.ma.masked_array(results)
+            i, j = np.meshgrid(*map(np.arange, results.shape), indexing='ij')
+            results.mask = (i == j)
+
         if average:
-            return np.array(results).mean(axis=1)
+            return results.mean(axis=1)
         else:
-            return np.array(results)
+            return results
 
     def accuracy_stats(self, method='shannons'):
         results = []
@@ -440,7 +440,7 @@ class MaskClassifier:
         fi = self.feature_importances.mean(axis=0).T
 
         if zscore:
-            fi = np.apply_along_aix(stats.zscore, 0, fi)
+            fi = np.apply_along_axis(stats.zscore, 0, fi)
 
         heat_map(self.feature_importances.mean(axis=0).T, range(0,self.mask_num), self.feature_names, basename + "imps_hm_overall.png")
         for i in range(0, self.mask_num):
