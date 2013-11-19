@@ -56,23 +56,23 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 
 	# Average classification accuracy brain map
 	clf.make_mask_map(basename + "_AvgClass.nii.gz", clf.get_mask_averages())
-	print "Made average accuracy map..."
+	print "Made average accuracy map"
 
-	print "Making consistency brain maps"
-	clf.make_mask_map(basename + "imps_shannons_0.nii.gz", clf.importance_stats(method='shannons'))
-	clf.make_mask_map(basename + "imps_var_0.nii.gz", clf.importance_stats(method='var'))
-	clf.make_mask_map(basename + "imps_cor_0.nii.gz", clf.importance_stats(method='cor'))
-	clf.make_mask_map(basename + "clf_shannons_0.nii.gz", clf.accuracy_stats(method='shannons'))
+	print "Making consistency brain maps.."
+	clf.make_mask_map(basename + "_imps_shannons_0.nii.gz", clf.importance_stats(method='shannons'))
+	clf.make_mask_map(basename + "_imps_var_0.nii.gz", clf.importance_stats(method='var'))
+	clf.make_mask_map(basename + "_imps_cor_0.nii.gz", clf.importance_stats(method='cor'))
+	clf.make_mask_map(basename + "_acc_shannons_0.nii.gz", clf.accuracy_stats(method='shannons'))
 	# clf.make_mask_map(basename + "clf_var_0.nii.gz", clf.accuracy_stats(method='var'))
 
-	print "Making sparsity brain maps"
-	clf.make_mask_map(basename + "imps_shannons_1.nii.gz", clf.importance_stats(method='shannons', axis=1))
-	clf.make_mask_map(basename + "imps_var_1.nii.gz", clf.importance_stats(method='var', axis=1))
-	clf.make_mask_map(basename + "imps_cor_1.nii.gz", clf.importance_stats(method='cor', axis=1))
-	clf.make_mask_map(basename + "clf_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
+	print "Making sparsity brain maps.."
+	clf.make_mask_map(basename + "_imps_shannons_1.nii.gz", clf.importance_stats(method='shannons', axis=1))
+	clf.make_mask_map(basename + "_imps_var_1.nii.gz", clf.importance_stats(method='var', axis=1))
+	clf.make_mask_map(basename + "_imps_cor_1.nii.gz", clf.importance_stats(method='cor', axis=1))
+	clf.make_mask_map(basename + "_acc_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
 	# clf.make_mask_map(basename + "clf_var_1.nii.gz", clf.accuracy_stats(method='var'))
 
-	print "Making consistency heat maps"
+	print "Making consistency heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=0, average=False).T, 
 		range(0, clf.mask_num), clf.feature_names, file_name=basename+"_shannons_hm_0.png")
 	heat_map(clf.importance_stats(method='var', axis=0, average=False).T, 
@@ -81,7 +81,7 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	# heat_map(clf.importance_stats(method='cor', axis=0, average=False).T, 
 	# 	range(0, clf.mask_num), clf.feature_names, file_name=basename+"_cor_hm_0.png")
 
-	print "Making sparsity heat maps"
+	print "Making sparsity heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=1, average=False).T, 
 		range(0, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_shannons_hm_1.png")
 	heat_map(clf.importance_stats(method='var', axis=1, average=False).T, 
@@ -93,7 +93,10 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	# clf.save_region_importance_plots(basename)
 
 	print "Making feature importance heatmaps..."
-	clf.region_heatmap(basename, zscore=True)
+	clf.region_heatmap(basename, zscore_regions=True)
+	clf.region_heatmap(basename, zscore_features=True)
+	clf.region_heatmap(basename, zscore_regions=True, zscore_features=True)
+
 
 	# Test-restest reliability
 	if retest:
@@ -165,7 +168,7 @@ dataset_topics_40_thresh.feature_table.data = sparse.csr_matrix(x)
 #############
 
 # Begin logging
-# sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
+sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 def complete_analysis(name, masklist, features=None):
 
@@ -184,13 +187,17 @@ def complete_analysis(name, masklist, features=None):
 	print "Topics"
 
 	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, cv='4-Fold',thresh=i), 
-		"../results/"+name+"_GB_topics_reduced_thresh_"+str(i), features=features)
+		"../results/"+name+"_GB_topics_reduced_t_"+str(i), features=features)
 
-	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
-	# 	"../results/"+name+"_NuSVC_grid_topics_reduced_thresh_"+str(i), features=features)
+	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
+		'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')},
+		cv='4-Fold',thresh=i), "../results/"+name+"_GB_topics_grid_reduced_t_"+str(i), features=features)
+
+	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
+		"../results/"+name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
 
 	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='3-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
+	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='4-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
@@ -207,14 +214,16 @@ def complete_analysis(name, masklist, features=None):
 # reduced_topics_2.remove('topic_5')
 
 
-complete_analysis(*ns_kmeans_masks[0], features=reduced_topics_2)
+complete_analysis(*ns_kmeans_masks[1], features=reduced_topics_2)
+complete_analysis(*ns_kmeans_masks[2], features=reduced_topics_2)
+
 
 # End  Logging
-# sys.stdout.end()
+sys.stdout.end()
 
 
 # {'max_features': np.linspace(2, 40, 4).astype(int), 
-#		'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')}
+# 		'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')}
 #
 
 

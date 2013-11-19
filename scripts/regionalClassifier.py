@@ -435,22 +435,57 @@ class MaskClassifier:
 
         return results
 
-    def region_heatmap(self, basename=None, zscore=False):
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None):
+        """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
+        as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
+        z-scored. You can also specify a threshold.
+
+        Args:
+            basename: string, base directory and file name
+            zscore_regions: boolean, should heatmap be z-scored based within regions
+            zscore_regions: boolean, should heatmap be z-scored based within features
+            thresh: value to threshold heatmap. Only values above this value are keept
+        Outputs:
+            Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
+            will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
+        """
 
         fi = self.feature_importances.mean(axis=0).T
 
-        if zscore:
-            fi = np.apply_along_axis(stats.zscore, 0, fi)
+        z0 = ""
+        z1 = ""
+        t = ""
 
-        heat_map(self.feature_importances.mean(axis=0).T, range(0,self.mask_num), self.feature_names, basename + "imps_hm_overall.png")
+        if zscore_regions:
+            fi = np.apply_along_axis(stats.zscore, 0, fi)
+            z0 = "z0_"
+        if zscore_features:
+            fi = np.apply_along_axis(stats.zscore, 1, fi)
+            z1 = "z1_"
+
+        if thresh is not None:
+            fi = np.ma.masked_array(fi)
+            fi.mask = fi < zthresh
+            t = "zt" + str(zthresh) + "_"
+
+        heat_map(fi, range(0,self.mask_num), self.feature_names, basename + "_imps_hm_" +  z0 + z1 + t + "overall.png")
+
         for i in range(0, self.mask_num):
 
             fi = self.feature_importances[i].T
 
+            if zscore_regions:
+                fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
+            if zscore_features:
+                fi = stats.zscore(fi, axis=1)
+
+            if thresh is not None:
+                fi.mask = fi < zthresh
+
             if basename is None:
                 file_name = None
             else:
-                file_name = basename + "imps_hm_" + str(i) + ".png"
+                file_name = basename + "_imps_hm_" + z0 + z1 + t + str(i) + ".png"
 
             heat_map(fi, range(0,self.mask_num), self.feature_names, file_name)
 
