@@ -374,12 +374,6 @@ class MaskClassifier:
 
         return self.get_importances(None, absolute=True, ranking=ranking)[-n:]
 
-    def topic_weights_feature(self, topic_weights, feature):
-        """ Returns topic weights for a feature in order of topic_weights
-        Best if that order is sorted """
-
-        return topic_weights[np.where(topic_weights == feature )[0]][:, 2]
-
     def save_region_importance_plots(self, basename, thresh=20):
         for i in range(1, self.mask_num):
             self.plot_importances(i-1, file_name=basename+"_imps_"+str(i)+".png", thresh=thresh)
@@ -440,7 +434,7 @@ class MaskClassifier:
         for row in subset:
             if method == 'shannons':
                 results.append(shannons(fs[subset.index(row)]))
-            if method == 'var':
+            elif method == 'var':
                 results.append(fs[subset.index(row)].var())
 
         return results
@@ -455,7 +449,7 @@ class MaskClassifier:
             zscore_regions: boolean, should heatmap be z-scored based within regions
             zscore_regions: boolean, should heatmap be z-scored based within features
             thresh: value to threshold heatmap. Only values above this value are kept
-            subset: only plot a subset of the regions against each other
+            subset: what regions should be plotted? default is all
 
         Outputs:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
