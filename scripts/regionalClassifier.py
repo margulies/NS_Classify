@@ -435,7 +435,7 @@ class MaskClassifier:
 
         return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None):
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None):
         """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
         as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
         z-scored. You can also specify a threshold.
@@ -444,13 +444,22 @@ class MaskClassifier:
             basename: string, base directory and file name
             zscore_regions: boolean, should heatmap be z-scored based within regions
             zscore_regions: boolean, should heatmap be z-scored based within features
-            thresh: value to threshold heatmap. Only values above this value are keept
+            thresh: value to threshold heatmap. Only values above this value are kept
+            subset: only plot a subset of the regions against each other
+
         Outputs:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
             will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
         """
+        if subset is not None:
+            if np.array(l).max() > self.mask_num:
+                print "Warning: you entered an incorrect mask index!"
+            overall_fi = self.feature_importances[subset][:, subset]
+        else:
+            overall_fi = self.feature_importances
+            subset = range(0,self.mask_num)
 
-        fi = self.feature_importances.mean(axis=0).T
+        fi = overall_fi.mean(axis=0).T
 
         z0 = ""
         z1 = ""
@@ -468,11 +477,11 @@ class MaskClassifier:
             fi.mask = fi < zthresh
             t = "zt" + str(zthresh) + "_"
 
-        heat_map(fi, range(0,self.mask_num), self.feature_names, basename + "_imps_hm_" +  z0 + z1 + t + "overall.png")
+        heat_map(fi, np.array(subset) + 1, self.feature_names, basename + "_imps_hm_" +  z0 + z1 + t + "overall.png")
 
-        for i in range(0, self.mask_num):
+        for i in subset:
 
-            fi = self.feature_importances[i].T
+            fi = overall_fi[subset.index(i)].T
 
             if zscore_regions:
                 fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
@@ -487,7 +496,7 @@ class MaskClassifier:
             else:
                 file_name = basename + "_imps_hm_" + z0 + z1 + t + str(i) + ".png"
 
-            heat_map(fi, range(0,self.mask_num), self.feature_names, file_name)
+            heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
 
     def save(self, filename, keep_dataset=False):
         if not keep_dataset:

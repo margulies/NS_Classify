@@ -74,18 +74,18 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 
 	print "Making consistency heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=0, average=False).T, 
-		range(0, clf.mask_num), clf.feature_names, file_name=basename+"_shannons_hm_0.png")
+		range(1, clf.mask_num), clf.feature_names, file_name=basename+"_shannons_hm_0.png")
 	heat_map(clf.importance_stats(method='var', axis=0, average=False).T, 
-		range(0, clf.mask_num), clf.feature_names, file_name=basename+"_var_hm_0.png")
+		range(1, clf.mask_num), clf.feature_names, file_name=basename+"_var_hm_0.png")
 
 	# heat_map(clf.importance_stats(method='cor', axis=0, average=False).T, 
 	# 	range(0, clf.mask_num), clf.feature_names, file_name=basename+"_cor_hm_0.png")
 
 	print "Making sparsity heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=1, average=False).T, 
-		range(0, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_shannons_hm_1.png")
+		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_shannons_hm_1.png")
 	heat_map(clf.importance_stats(method='var', axis=1, average=False).T, 
-		range(0, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_var_hm_1.png")
+		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_var_hm_1.png")
 	# heat_map(clf.importance_stats(method='cor', axis=1, average=False).T, 
 	# 	range(0, clf.mask_num), clf.feature_names, file_name=basename+"_cor_hm_1.png")
 
@@ -189,12 +189,12 @@ def complete_analysis(name, masklist, features=None):
 	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, cv='4-Fold',thresh=i), 
 		"../results/"+name+"_GB_topics_reduced_t_"+str(i), features=features)
 
+	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
+		"../results/"+name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
+
 	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
 		'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')},
 		cv='4-Fold',thresh=i), "../results/"+name+"_GB_topics_grid_reduced_t_"+str(i), features=features)
-
-	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
-		"../results/"+name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
 
 	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
 	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='4-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
@@ -214,7 +214,7 @@ def complete_analysis(name, masklist, features=None):
 # reduced_topics_2.remove('topic_5')
 
 
-complete_analysis(*ns_kmeans_masks[1], features=reduced_topics_2)
+# complete_analysis(*ns_kmeans_masks[1], features=reduced_topics_2)
 complete_analysis(*ns_kmeans_masks[2], features=reduced_topics_2)
 
 
