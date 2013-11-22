@@ -385,7 +385,7 @@ class MaskClassifier:
             self.plot_importances(i-1, file_name=basename+"_imps_"+str(i)+".png", thresh=thresh)
             self.plot_importances(None, file_name=basename+"_imps_overall.png", thresh=thresh)
 
-    def importance_stats(self, method='var', axis=0, average=True, subset=None):
+    def importance_stats(self, method='var', axis=0, average=True, subset=range(0, self.mask_num)):
         """ Returns various statics on the importances for each masks
         These funcions are intended to be used to summarize how consistent or correlated 
         the importance matrices are within each region 
@@ -400,11 +400,7 @@ class MaskClassifier:
 
         results = []
 
-        if subset is not None:
-            fi = self.feature_importances[subset][:, subset]
-        else:
-            fi = self.feature_importances
-            subset = range(0, self.mask_num)
+        fi = self.feature_importances[subset][:, subset]
 
         if axis == 0:
             rev_axis = 1
@@ -436,17 +432,20 @@ class MaskClassifier:
         else:
             return results
 
-    def accuracy_stats(self, method='shannons'):
+    def accuracy_stats(self, method='shannons', subset=range(0, self.mask_num)):
+
+        fs = self.final_score[subset][:, subset]
+
         results = []
-        for row in range(0, self.mask_num):
+        for row in subset:
             if method == 'shannons':
-                results.append(shannons(self.final_score[row]))
+                results.append(shannons(fs[subset.index(row)]))
             if method == 'var':
-                results.append(self.final_score[row].var())
+                results.append(fs[subset.index(row)].var())
 
         return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None):
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=range(0, self.mask_num)):
         """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
         as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
         z-scored. You can also specify a threshold.
@@ -462,13 +461,10 @@ class MaskClassifier:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
             will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
         """
-        if subset is not None:
-            if np.array(l).max() > self.mask_num:
-                print "Warning: you entered an incorrect mask index!"
-            overall_fi = self.feature_importances[subset][:, subset]
-        else:
-            overall_fi = self.feature_importances
-            subset = range(0,self.mask_num)
+
+        overall_fi = self.feature_importances[subset][:, subset]
+        if np.array(subset).max() > self.mask_num:
+            print "Warning: you entered an incorrect mask index!"
 
         fi = overall_fi.mean(axis=0).T
 
@@ -514,16 +510,6 @@ class MaskClassifier:
             self.datset= []
         import cPickle
         cPickle.dump(self, open(filename, 'wb'), -1)
-
-
-
-
-    # def features_to_topics(self, topic_weights, importances):
-    #     topic_imps = np.array([topic_weights_feature(topic_weights, pair[1])*pair[0] for pair in importances]).mean(axis=0)
-
-    #     ## Then just zip back up to topic numbers
-
-
 
 
 
