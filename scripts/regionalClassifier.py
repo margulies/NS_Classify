@@ -214,10 +214,15 @@ class MaskClassifier:
 
         self.status = 1
 
-    def get_mask_averages(self, precision=None):
+    def get_mask_averages(self, precision=None, subset=None):
 
-        averages = [self.final_score[k].mean() for k in range(0,
-            self.final_score.shape[0])]
+        if subset is not None:
+            final_score = self.final_score[subset][:, subset]
+        else:
+            final_score = self.final_score
+
+        averages = [final_score[k].mean() for k in range(0,
+            final_score.shape[0])]
 
         if precision is not None:
             averages = [round(x, precision) for x in averages]
@@ -380,7 +385,7 @@ class MaskClassifier:
             self.plot_importances(i-1, file_name=basename+"_imps_"+str(i)+".png", thresh=thresh)
             self.plot_importances(None, file_name=basename+"_imps_overall.png", thresh=thresh)
 
-    def importance_stats(self, method='var', axis=0, average=True):
+    def importance_stats(self, method='var', axis=0, average=True, subset=None):
         """ Returns various statics on the importances for each masks
         These funcions are intended to be used to summarize how consistent or correlated 
         the importance matrices are within each region 
@@ -390,23 +395,29 @@ class MaskClassifier:
         axis = 1 is equivalent to applying to within regions
 
         average: average results within axis of interest?
+        subset: Only do for a subset of the data
         """
 
         results = []
+
+        if subset is not None:
+            fi = self.feature_importances[subset][:, subset]
+        else:
+            fi = self.feature_importances
+            subset = range(0, self.mask_num)
 
         if axis == 0:
             rev_axis = 1
         else:
             rev_axis = 0
 
-        for i in range(0, self.mask_num):
-            region_data = np.array(filter(None, self.feature_importances[i]))
+        for i in subset:
+            region_data = np.array(filter(None, fi[subset.index(i)]))
 
             if method == 'var':
                 results.append(np.apply_along_axis(np.var, axis, region_data))
 
             elif method == 'cor':
-
                 x = np.corrcoef(region_data, rowvar=rev_axis).flatten()
                 results.append(np.ma.masked_array(x, np.equal(x, 1)))
 
