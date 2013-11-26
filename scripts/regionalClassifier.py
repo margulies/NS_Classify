@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# Here I use Yeo to test Neurosynth's classify functions
-
 from neurosynth.base.dataset import Dataset
 from neurosynth.analysis import classify
 import os
@@ -20,10 +18,14 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import RFE
 
 import matplotlib.pyplot as plt
-
 from scipy import stats
 
-
+def plot_min_max_fi(clf):
+    density_plot(clf.feature_importances[tuple(np.where(sh_1 == sh_1.min())[0])], file_name="../results/diagonstic/sh_1_min.png")
+    density_plot(clf.feature_importances[tuple(np.where(sh_1 == sh_1.max())[0])], file_name="../results/diagonstic/sh_1_max.png")
+    density_plot(clf.feature_importances[np.where(sh == sh.max())[0]][:, np.where(sh == sh.max())[1]], file_name="../results/diagonstic/sh_0_max.png")
+    density_plot(clf.feature_importances[np.where(sh == sh.min())[0]][:, np.where(sh == sh.min())[1]], file_name="../results/diagonstic/sh_0_min.png")
+    
 def shannons(x):
     """ Returns Shannon's Diversity Index for an np.array """
     if np.isnan(x.mean()) or x.mean() == 0.0:
@@ -35,6 +37,19 @@ def shannons(x):
         x = np.ma.masked_array(x, np.isnan(x))
         return ((x).sum())*-1
 
+def density_plot(data, file_name=None, covariance_factor = .2):
+    """ Generate a density plot """
+    data = np.array(data)
+    density = stats.gaussian_kde(data)
+    xs = np.linspace(0,data.max()+data.max()/10,200)
+    density.covariance_factor = lambda : covariance_factor
+    density._compute_covariance()
+    plt.plot(xs,density(xs))
+
+    if file_name is None:
+        plt.show()
+    else:
+        plt.savefig(file_name)
 
 def heat_map(data, x_labels, y_labels, file_name=None):
 
@@ -104,6 +119,8 @@ class MaskClassifier:
         self.cv = cv
 
         self.status = 0
+
+        self.features = features
 
         if isinstance(self.classifier, RFE):
             self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
@@ -286,7 +303,6 @@ class MaskClassifier:
        
 
         if not isinstance(index, tuple): # If not a tuple (i.e. integer or None), get mean
-
             if index is None:
                 fi = fi.mean(axis=0).mean(axis=0)
             else:
@@ -379,7 +395,7 @@ class MaskClassifier:
             self.plot_importances(i-1, file_name=basename+"_imps_"+str(i)+".png", thresh=thresh)
             self.plot_importances(None, file_name=basename+"_imps_overall.png", thresh=thresh)
 
-    def importance_stats(self, method='var', axis=0, average=True, subset=range(0, self.mask_num)):
+    def importance_stats(self, method='shannons', axis=0, average=True, subset=None):
         """ Returns various statics on the importances for each masks
         These funcions are intended to be used to summarize how consistent or correlated 
         the importance matrices are within each region 
@@ -391,6 +407,9 @@ class MaskClassifier:
         average: average results within axis of interest?
         subset: Only do for a subset of the data
         """
+
+        if subset is None:
+            subset = range(0, self.mask_num)
 
         results = []
 
@@ -426,7 +445,10 @@ class MaskClassifier:
         else:
             return results
 
-    def accuracy_stats(self, method='shannons', subset=range(0, self.mask_num)):
+    def accuracy_stats(self, method='shannons', subset=None):
+
+        if subset is None:
+            subset = range(0, self.mask_num)
 
         fs = self.final_score[subset][:, subset]
 
@@ -439,7 +461,19 @@ class MaskClassifier:
 
         return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=range(0, self.mask_num)):
+    def minN_by_region(self):
+        """ Returns the average N for the smallest class in each comparison for each region """
+        results = []
+        for i in self.c_data:
+            r = []
+            for j in i:
+                if j is not None:
+                    r.append(np.bincount(j[1])[np.bincount(j[1]) != 0].min())
+
+            results.append(np.array(r).mean())
+        return results
+
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None):
         """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
         as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
         z-scored. You can also specify a threshold.
@@ -455,6 +489,9 @@ class MaskClassifier:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
             will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
         """
+
+        if subset is None:
+            subset = range(0, self.mask_num)
 
         overall_fi = self.feature_importances[subset][:, subset]
         if np.array(subset).max() > self.mask_num:
