@@ -515,7 +515,7 @@ class MaskClassifier:
             fi.mask = fi < zthresh
             t = "zt" + str(zthresh) + "_"
 
-        heat_map(fi, np.array(subset) + 1, self.feature_names, basename + "_imps_hm_" +  z0 + z1 + t + "overall.png")
+        heat_map(fi, np.array(subset) + 1, self.feature_names, basename + "imps_hm_" +  z0 + z1 + t + "overall.png")
 
         for i in subset:
 
@@ -532,7 +532,7 @@ class MaskClassifier:
             if basename is None:
                 file_name = None
             else:
-                file_name = basename + "_imps_hm_" + z0 + z1 + t + str(i) + ".png"
+                file_name = basename + "imps_hm_" + z0 + z1 + t + str(i) + ".png"
 
             heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
 

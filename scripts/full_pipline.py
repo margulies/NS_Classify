@@ -35,15 +35,28 @@ class Logging():
     	self.stdout.flush()
 
 #### Pipline
-def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
+def pipeline(clf, name, features=None, retest=False, scoring='accuracy'):
 
 	print( "Classifier: " + str(clf.classifier))
 
 	# Classify and save $ print 
 	clf.classify(features=features, scoring=scoring, dummy=True)
-	clf.save(basename+".pkl")
+
+	# Make directory for saving
+	basename = "../results/" + name + "_"
+	add = ""
+	while os.path.exists(basename + add):
+		if add == "":
+			add = "_1"
+		else:
+			add = "_" + str(int(add[1:]) + 1)
+	basename = basename + add + "/"
+	os.makedirs(basename)
 
 	print basename
+
+	# Save classifier
+	clf.save(basename + "classifier.pkl")
 
 	print "_____________________"
 	print "Descriptive results:"
@@ -55,37 +68,37 @@ def pipeline(clf, basename, features=None, retest=False, scoring='accuracy'):
 	print
 
 	# Average classification accuracy brain map
-	clf.make_mask_map(basename + "_AvgClass.nii.gz", clf.get_mask_averages())
+	clf.make_mask_map(basename + "avg_class.nii.gz", clf.get_mask_averages())
 	print "Made average accuracy map"
 
 	print "Making consistency brain maps.."
-	clf.make_mask_map(basename + "_imps_shannons_0.nii.gz", clf.importance_stats(method='shannons'))
-	clf.make_mask_map(basename + "_imps_var_0.nii.gz", clf.importance_stats(method='var'))
-	clf.make_mask_map(basename + "_imps_cor_0.nii.gz", clf.importance_stats(method='cor'))
-	clf.make_mask_map(basename + "_acc_shannons_0.nii.gz", clf.accuracy_stats(method='shannons'))
+	clf.make_mask_map(basename + "imps_shannons_0.nii.gz", clf.importance_stats(method='shannons'))
+	clf.make_mask_map(basename + "imps_var_0.nii.gz", clf.importance_stats(method='var'))
+	clf.make_mask_map(basename + "imps_cor_0.nii.gz", clf.importance_stats(method='cor'))
+	clf.make_mask_map(basename + "acc_shannons_0.nii.gz", clf.accuracy_stats(method='shannons'))
 	# clf.make_mask_map(basename + "clf_var_0.nii.gz", clf.accuracy_stats(method='var'))
 
 	print "Making sparsity brain maps.."
-	clf.make_mask_map(basename + "_imps_shannons_1.nii.gz", clf.importance_stats(method='shannons', axis=1))
-	clf.make_mask_map(basename + "_imps_var_1.nii.gz", clf.importance_stats(method='var', axis=1))
-	clf.make_mask_map(basename + "_imps_cor_1.nii.gz", clf.importance_stats(method='cor', axis=1))
-	clf.make_mask_map(basename + "_acc_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
+	clf.make_mask_map(basename + "imps_shannons_1.nii.gz", clf.importance_stats(method='shannons', axis=1))
+	clf.make_mask_map(basename + "imps_var_1.nii.gz", clf.importance_stats(method='var', axis=1))
+	clf.make_mask_map(basename + "imps_cor_1.nii.gz", clf.importance_stats(method='cor', axis=1))
+	clf.make_mask_map(basename + "acc_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
 	# clf.make_mask_map(basename + "clf_var_1.nii.gz", clf.accuracy_stats(method='var'))
 
 	print "Making consistency heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=0, average=False).T, 
-		range(1, clf.mask_num), clf.feature_names, file_name=basename+"_shannons_hm_0.png")
+		range(1, clf.mask_num), clf.feature_names, file_name=basename + "shannons_hm_0.png")
 	heat_map(clf.importance_stats(method='var', axis=0, average=False).T, 
-		range(1, clf.mask_num), clf.feature_names, file_name=basename+"_var_hm_0.png")
+		range(1, clf.mask_num), clf.feature_names, file_name=basename + "var_hm_0.png")
 
 	# heat_map(clf.importance_stats(method='cor', axis=0, average=False).T, 
 	# 	range(0, clf.mask_num), clf.feature_names, file_name=basename+"_cor_hm_0.png")
 
 	print "Making sparsity heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=1, average=False).T, 
-		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_shannons_hm_1.png")
+		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename + "shannons_hm_1.png")
 	heat_map(clf.importance_stats(method='var', axis=1, average=False).T, 
-		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"_var_hm_1.png")
+		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"var_hm_1.png")
 	# heat_map(clf.importance_stats(method='cor', axis=1, average=False).T, 
 	# 	range(0, clf.mask_num), clf.feature_names, file_name=basename+"_cor_hm_1.png")
 
@@ -178,26 +191,26 @@ def complete_analysis(name, masklist, features=None):
 	# print "Words"
 
 	# pipeline(MaskClassifier(dataset, masklist, thresh=i, 
-	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_GB_words_reduced_thresh_"+str(i), features=None)
+	# 	param_grid=None, cv='4-Fold'), name+"_GB_words_reduced_thresh_"+str(i), features=None)
 
 	# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid=None, cv='4-Fold'), "../results/"+name+"_SVM_words_reduced_thresh_"+str(i), features=None)
+	# 	param_grid=None, cv='4-Fold'), name+"_SVM_words_reduced_thresh_"+str(i), features=None)
 
 	# print
 	print "Topics"
 
 	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, cv='4-Fold',thresh=i), 
-		"../results/"+name+"_GB_topics_reduced_t_"+str(i), features=features)
+		name+"_GB_topics_reduced_t_"+str(i), features=features)
 
 	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
-		"../results/"+name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
+		name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
 
 	pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
 		'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')},
-		cv='4-Fold',thresh=i), "../results/"+name+"_GB_topics_grid_reduced_t_"+str(i), features=features)
+		cv='4-Fold',thresh=i), name+"_GB_topics_grid_reduced_t_"+str(i), features=features)
 
 	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='4-Fold'), "../results/"+name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
+	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='4-Fold'), name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
