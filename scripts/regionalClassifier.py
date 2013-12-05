@@ -189,7 +189,7 @@ class MaskClassifier:
                             self.feature_importances[index] = self.fit_clfs[index].feature_importances_
                         except AttributeError:
                             pass
-                elif isinstance(self.classifier, LinearSVC):
+                elif isinstance(self.classifier, LinearSVC) or isinstance(self.classifier, RidgeClassifier):
                     self.feature_importances[index] = self.fit_clfs[index].coef_[0]
                 else:
                     try:
