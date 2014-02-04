@@ -37,12 +37,12 @@ class Logging():
     	self.stdout.flush()
 
 #### Pipline
-def pipeline(clf, name, features=None, retest=False, scoring='accuracy'):
+def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_threshold=None):
 
 	print( "Classifier: " + str(clf.classifier))
 
 	# Classify and save $ print 
-	clf.classify(features=features, scoring=scoring, dummy=True)
+	clf.classify(features=features, scoring=scoring, dummy=True, X_threshold=X_threshold)
 
 	# Make directory for saving
 	basename = "../results/" + name 
@@ -108,6 +108,7 @@ def pipeline(clf, name, features=None, retest=False, scoring='accuracy'):
 	# clf.save_region_importance_plots(basename)
 
 	print "Making feature importance heatmaps..."
+	clf.region_heatmap(basename)
 	clf.region_heatmap(basename, zscore_regions=True)
 	clf.region_heatmap(basename, zscore_features=True)
 	clf.region_heatmap(basename, zscore_regions=True, zscore_features=True)
@@ -180,6 +181,8 @@ dataset_topics_40_thresh = dataset_topics_40
 dataset_topics_40_thresh.feature_table.data = sparse.csr_matrix(x)
 
 
+dataset_abstracts = Dataset.load("../data/new_dataset/new_dataset.pkl")
+
 #############
 # Analyses  #
 #############
@@ -189,32 +192,61 @@ sys.stdout = Logging("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 def complete_analysis(name, masklist, features=None):
 
-	i = 0.05
-	print "Thresh = " + str(i)
+	i = 0.07 
 
-	# print "Words"
+	# for i in [0.01, 0.03, 0.07, 0.1]:
+	# 	print "Thresh = " + str(i)
 
-	# pipeline(MaskClassifier(dataset, masklist, thresh=i, 
-	# 	param_grid=None, cv='4-Fold'), name+"_GB_words_reduced_thresh_"+str(i), features=None)
+	# 	# print "Words"
 
-	# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid=None, cv='4-Fold'), name+"_SVM_words_reduced_thresh_"+str(i), features=None)
+	# 	# pipeline(MaskClassifier(dataset, masklist, thresh=i, 
+	# 	# 	param_grid=None, cv='4-Fold'), name+"_GB_words_reduced_thresh_"+str(i), features=None)
 
-	# print
-	print "Topics"
+	# 	# pipeline(MaskClassifier(dataset, masklist, thresh=i, classifier=LinearSVC(class_weight="auto"), 
+	# 	# 	param_grid=None, cv='4-Fold'), name+"_SVM_words_reduced_thresh_"+str(i), features=None)
 
-	pipeline(MaskClassifier(dataset_topics_40, masklist, classifier =  RidgeClassifier(), param_grid=None, cv='4-Fold',thresh=i), 
-		name+"_Ridge_topics_t_"+str(i), features=features)
+	# 	# print
+	# 	print "Topics"
+
+	pipeline(MaskClassifier(dataset_abstracts, masklist, param_grid=None, cv='4-Fold',thresh=i), 
+		name+"_GB_abstract_words_t_"+str(i), features=features)
 
 	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=NuSVC(0.15), cv='4-Fold',thresh=i),
 	# 	name+"_NuSVC_topics_reduced_t_"+str(i), features=features)
 
-	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid={'max_features': np.linspace(2, 24, 4).astype(int), 
-	# 	'n_estimators': np.round(np.linspace(5, 141, 4)).astype(int),'learning_rate': np.linspace(0.05, 1, 4).astype('float')},
-	# 	cv='4-Fold',thresh=i), name+"_GB_topics_grid_reduced_t_"+str(i), features=features)
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, classifier=RidgeClassifier(alpha = 0.1),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_0.1_topics_t_"+str(i), features=features)
+	# all_topics = list(dataset_topics_40.get_feature_names())
+	# # shuffle(all_topics)
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, classifier=RidgeClassifier(),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_topics_f1_t_"+str(i), features=features, scoring = 'f1')
 
-	# pipeline(MaskClassifier(dataset_topics_40, masklist, classifier=LinearSVC(class_weight="auto"), 
-	# 	param_grid={'C': np.linspace(0.1, 1, 4)}, cv='4-Fold'), name+"_SVM_topics_reduced_thresh_"+str(i), features=features)
+	pipeline(MaskClassifier(dataset_abstracts, masklist, param_grid=None, classifier=RidgeClassifier(),
+		cv='4-Fold',thresh=i), name+"_Ridge_abstractwords_"+str(i), features=features)
+	
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, classifier=RidgeClassifier(),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_Xt_0.1_topics_t_"+str(i), features=None, X_threshold = 0.1)
+
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, classifier=RidgeClassifier(),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_Xt_0.3_topics_t_"+str(i), features=None, X_threshold = 0.3)
+
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None,
+	# 	cv='4-Fold',thresh=i), name+"_GB_Xt_0.2_topics_t_"+str(i), features=None, X_threshold = 0.2)
+
+	# pipeline(MaskClassifier(dataset_topics_40, masklist, param_grid=None, classifier=RidgeClassifier(alpha = 10),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_0.7_topics_t_"+str(i), features=features)
+
+	# pipeline(MaskClassifier(dataset, masklist, param_grid=None, classifier=RidgeClassifier(alpha = 0.1),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_terms_t_"+str(i), features=None)
+
+	# pipeline(MaskClassifier(dataset, masklist, param_grid=None, classifier=RidgeClassifier(alpha = 1),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_terms_red_t_"+str(i), features=reduced_features)
+
+	# all_terms = dataset.get_feature_names()
+	# shuffle(all_terms)
+	# pipeline(MaskClassifier(dataset, masklist, param_grid=None, classifier=RidgeClassifier(alpha = 1),
+	# 	cv='4-Fold',thresh=i), name+"_Ridge_terms_rand_t_"+str(i), features=all_terms[:50])
+
 
 
 # complete_analysis("Yeo7", yeo_7_masks)
@@ -231,11 +263,7 @@ def complete_analysis(name, masklist, features=None):
 # reduced_topics_2.remove('topic_5')
 
 
-complete_analysis(*ns_kmeans_masks[1])
-# complete_analysis(ns_kmeans_masks[1][0] + "_junk", ns_kmeans_masks[1][1], features=junk_topics_2)
-
-# complete_analysis(*ns_kmeans_masks[2])
-# complete_analysis(ns_kmeans_masks[2][0] + "_junk", ns_kmeans_masks[2][1], features=junk_topics_2)
+# complete_analysis(*craddock_masks[141])
 
 
 
