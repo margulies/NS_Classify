@@ -19,12 +19,48 @@ from sklearn.feature_selection import RFE
 
 import matplotlib.pyplot as plt
 from scipy import stats
+from sklearn.preprocessing import binarize
 
 def plot_min_max_fi(clf):
     density_plot(clf.feature_importances[tuple(np.where(sh_1 == sh_1.min())[0])], file_name="../results/diagonstic/sh_1_min.png")
     density_plot(clf.feature_importances[tuple(np.where(sh_1 == sh_1.max())[0])], file_name="../results/diagonstic/sh_1_max.png")
     density_plot(clf.feature_importances[np.where(sh == sh.max())[0]][:, np.where(sh == sh.max())[1]], file_name="../results/diagonstic/sh_0_max.png")
     density_plot(clf.feature_importances[np.where(sh == sh.min())[0]][:, np.where(sh == sh.min())[1]], file_name="../results/diagonstic/sh_0_min.png")
+
+def ix_subset(dataset, subset):
+     return [i for i, x in enumerate(dataset.get_feature_names()) if x in subset]
+
+
+
+def get_ns_for_pairs(a_b_c):
+    """Convert `f([1,2])` to `f(1,2)` call."""
+    dataset, pairs, thresh = a_b_c
+
+    index = (pairs[0][1], pairs[1][1]) # Tuple numeric index of pairs
+    names = [pairs[0][0], pairs[1][0]] # Actual paths to masks
+
+    X, y = classify.get_studies_by_regions(dataset, names, thresh)
+
+    n = np.bincount(y)
+    return (index, n)
+
+def calculate_feature_corr(clf):
+    import numpy as np
+    from scipy import stats
+
+    f_corr =  np.empty(clf.feature_importances.shape)
+
+    for i in range(0, clf.c_data.shape[0]):
+        for j in range(0, clf.c_data.shape[1]):
+
+            if i == j:
+                f_corr[i, j] = None
+            else:
+                data, classes = clf.c_data[i, j]
+
+                f_corr[i, j] = np.apply_along_axis(lambda x: stats.pearsonr(x, classes), 0, data)[0]
+
+    clf.feature_corr = np.ma.masked_array(f_corr, mask=np.isnan(f_corr))
     
 def shannons(x):
     """ Returns Shannon's Diversity Index for an np.array """
@@ -120,23 +156,40 @@ class MaskClassifier:
 
         self.status = 0
 
-        self.features = features
-
         if isinstance(self.classifier, RFE):
             self.feature_ranking = np.empty((self.mask_num, self.mask_num), object)  # Fitted classifier
         else:
             self.feature_ranking = None
 
-    def classify(self, features=None, scoring='accuracy', dummy = True):
+    def calculate_ns(self):
+        from multiprocessing import Pool
 
-        iters = list(itertools.combinations(self.masklist, 2))
+        mask_pairs = list(itertools.combinations(self.masklist, 2))
+        self.ns =  np.ma.masked_array(np.empty((self.mask_num, self.mask_num, 2)), True)
+
+        prog = 0.0
+        total = len(list(mask_pairs))
+
+        self.update_progress(0)
+
+        p = Pool()
+
+        for index, n in p.imap_unordered(get_ns_for_pairs, itertools.izip(itertools.repeat(self.dataset), mask_pairs, itertools.repeat(self.thresh))):
+            self.ns[index] = n
+            prog = prog + 1
+            self.update_progress(int(prog / total * 100))
+
+
+    def classify(self, features=None, scoring='accuracy', dummy = True, X_threshold=None):
+
+        iters = list(itertools.permutations(self.masklist, 2))
         prog = 0.0
         total = len(list(iters))
 
         self.update_progress(0)
 
         if features:
-            self.feature_names = self.dataset.get_feature_names(features)
+            self.feature_names = features
         else:
             self.feature_names = self.dataset.get_feature_names()
 
@@ -153,8 +206,17 @@ class MaskClassifier:
             index = (pairs[0][1], pairs[1][1]) # Tuple numeric index of pairs
             names = [pairs[0][0], pairs[1][0]] # Actual paths to masks
 
-            self.c_data[index] = classify.get_studies_by_regions(self.dataset, 
-                names, threshold=self.thresh, features=features, regularization='scale')
+            if self.c_data[index] is None:
+                X, y = classify.get_studies_by_regions(self.dataset, 
+                    names, threshold=self.thresh, features=features, regularization='scale')
+
+            if X_threshold is not None:
+                X = binarize(X, X_threshold)
+
+            # if features is not None:
+            #     X = X[:, classify.get_feature_order(self.dataset, self.feature_names)]
+
+            self.c_data[index] = (X, y)
 
             if isinstance(self.classifier, RFE):
 
@@ -169,10 +231,8 @@ class MaskClassifier:
                 self.feature_ranking[index] = self.classifier.ranking_
 
             else:
-                output = classify.classify_regions(self.dataset, names,
-                    classifier=self.classifier,
-                    param_grid=self.param_grid, threshold=self.thresh,
-                    features=features, output='summary_clf', scoring=scoring)
+                output = classify.classify(X, y, classifier = self.classifier, output = 'summary_clf', cross_val = '4-Fold',
+                    class_weight = 'auto', scoring=scoring, param_grid=self.param_grid)
 
                 self.class_score[index] = output['score']
 
@@ -181,22 +241,21 @@ class MaskClassifier:
                 # import ipdb; ipdb.set_trace()
 
                 if self.param_grid: # Just get them if you used a grid
-
-                    if isinstance(self.fit_clfs[index].estimator, LinearSVC):
-                        self.feature_importances[index] = self.fit_clfs[index].fit(*self.c_data[index]).best_estimator_.coef_[0]
-                    else:
+                    try:
+                        self.feature_importances[index] = self.fit_clfs[index].best_estimator_.coef_[0]
+                    except AttributeError:
                         try:
                             self.feature_importances[index] = self.fit_clfs[index].feature_importances_
                         except AttributeError:
                             pass
-                elif isinstance(self.classifier, LinearSVC) or isinstance(self.classifier, RidgeClassifier):
-                    self.feature_importances[index] = self.fit_clfs[index].coef_[0]
                 else:
                     try:
-                        self.feature_importances[index] = self.fit_clfs[index].feature_importances_
+                        self.feature_importances[index] = self.fit_clfs[index].coef_[0]
                     except AttributeError:
-                        pass
-
+                        try:
+                            self.feature_importances[index] = self.fit_clfs[index].feature_importances_
+                        except AttributeError:
+                            pass
 
             self.dummy_score[index] = classify.classify_regions(self.dataset, names,
                 method='Dummy' , threshold=self.thresh)['score']
@@ -215,19 +274,19 @@ class MaskClassifier:
             self.final_score = self.class_score
 
         # Make results fill in across diagonal
-        for j in range(0, self.mask_num):
-            for b in range(0, self.mask_num):
-                if self.final_score.mask[j, b] and not j == b:
-                    self.final_score[j, b] = self.final_score[b, j]
-                    self.fit_clfs[j, b] = self.fit_clfs[b, j]
-                    self.c_data[j, b] = self.c_data[b, j]
-                    if isinstance(self.classifier, LinearSVC):
-                        self.feature_importances[j, b] = self.feature_importances[b, j] * -1
-                    else:
-                        self.feature_importances[j, b] = self.feature_importances[b, j]
+        # for j in range(0, self.mask_num):
+        #     for b in range(0, self.mask_num):
+        #         if self.final_score.mask[j, b] and not j == b:
+        #             self.final_score[j, b] = self.final_score[b, j]
+        #             self.fit_clfs[j, b] = self.fit_clfs[b, j]
+        #             self.c_data[j, b] = self.c_data[b, j]
+        #             if isinstance(self.classifier, LinearSVC):
+        #                 self.feature_importances[j, b] = self.feature_importances[b, j] * -1
+        #             else:
+        #                 self.feature_importances[j, b] = self.feature_importances[b, j]
                     
-                    if self.feature_ranking is not None:
-                        self.feature_ranking[j, b] = self.feature_ranking[b, j]
+        #             if self.feature_ranking is not None:
+        #                 self.feature_ranking[j, b] = self.feature_ranking[b, j]
 
         self.status = 1
 
