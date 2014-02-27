@@ -1,2 +1,9 @@
+upload.sh
+old_code/*
+reports/*
 .DS_Store
 *~
+logs/*
+data/*
+sandbox/*
+results/*
