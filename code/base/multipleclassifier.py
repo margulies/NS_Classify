@@ -588,15 +588,19 @@ class MaskClassifier:
 
             heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
 
-    def save(self, filename, keep_dataset=False, keep_cdata=False):
+    def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
         if not keep_dataset:
             self.dataset = []
         if not keep_cdata:
-            self.c_data []
+            self.c_data = []
+
+        if not keep_clfs:
+            self.fit_clfs = []
         import cPickle
         cPickle.dump(self, open(filename, 'wb'), -1)
 
-    def load(self, filename):
+    @classmethod
+    def load(cls, filename):
         """ Load a pickled Dataset instance from file. """
         import cPickle
         return cPickle.load(open(filename, 'rb'))
