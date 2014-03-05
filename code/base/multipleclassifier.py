@@ -176,20 +176,7 @@ class MaskClassifier:
 
         pb = tools.ProgressBar(len(list(mask_pairs)))
 
-        if feat_select == 'lasso':
-            self.alphas = np.empty((self.mask_num, self.mask_num))
-
-        if feat_select is 'lasso':
-            print "Running LASSO..."
-            pb.next()
-
-            for fs, alpha, index in itertools.imap(LassoCV_parallel,
-                                                   itertools.izip(itertools.repeat(self.c_data), mask_pairs)):
-                self.alphas[index] = alpha
-                self.features_selected[index] = fs
-                pb.next()
-
-        elif feat_select is not None and re.match('.*-best', feat_select) is not None:
+        if feat_select is not None and re.match('.*-best', feat_select) is not None:
             n = feat_select.split('-')[0]
 
             selector = SelectKBest(k=int(n))
