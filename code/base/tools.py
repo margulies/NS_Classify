@@ -31,9 +31,11 @@ class Logger():
 
 class ProgressBar():
 
-    def __init__(self, total):
+    def __init__(self, total, start=False):
         self.total = total
         self.current = 0.0
+        if start:
+            self.next()
 
     def update_progress(self, progress):
         display = '\r[{0}] {1}%'.format('#' * (progress / 10), progress)

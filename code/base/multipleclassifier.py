@@ -63,38 +63,30 @@ def get_ns_for_pairs(a_b_c):
 
 
 def classify_parallel(args):
-    (classifier, param_grid, scoring, filename, features_selected), pair = args
+    (classifier, param_grid, scoring, filename, feat_select, length), pair = args
 
     index, names = tools.get_index_path(pair)
-
-    c_data = np.memmap(filename, dtype='object', mode='r',
-                       shape=features_selected.shape)
-
-    X, y = c_data[index]
-
+    
+    X, y = np.memmap(filename, dtype='object', mode='r',
+                       shape=(length, length))[index]
     X = X.toarray()
 
-    fullX = X
+    output = classify.classify(
+        X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
+        class_weight='auto', scoring=scoring, param_grid=param_grid, feat_select=feat_select)
 
-    if features_selected[index] is not None:
-        fullX = X
-        X = X[:, features_selected[index]]
+    output['clf'].fit(X, y) # Is this necessary?
 
-    # If no features left
-    if X.shape[1] is 0:
-        output = {'score': 0, 'clf': None}
-    else:
-        output = classify.classify(
-            X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
-            class_weight='auto', scoring=scoring, param_grid=param_grid)
-        output['clf'].fit(fullX, y)
-    return index, names, output
+    output['index'] = index
+    output['names'] = names
 
+    # Remember to add vector to output that keeps track of seleted features to asses stability
+    return output
 
 class MaskClassifier:
 
-    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(),
-                 thresh=0.08, param_grid=None, cv=None):
+    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), 
+        thresh=0.08, param_grid=None, cv=None):
 
         self.masklist = zip(masks, range(0, len(masks)))
 
@@ -174,33 +166,22 @@ class MaskClassifier:
 
         self.load_data(features, mask_pairs, X_threshold)
 
-        pb = tools.ProgressBar(len(list(mask_pairs)))
-
-        if feat_select is not None and re.match('.*-best', feat_select) is not None:
-            n = feat_select.split('-')[0]
-
-            selector = SelectKBest(k=int(n))
-
-            for pair in mask_pairs:
-                index, _ = tools.get_index_path(pair)
-                X, y = self.c_data[index]
-
-                self.features_selected[index] = np.where(
-                    selector.fit(X, y).get_support() == True)[0]
-                pb.next()
-
         print "Classifying..."
-        pb.next()
+        pb = tools.ProgressBar(len(list(mask_pairs)), start=True)
 
         pool = Pool(processes=processes)
 
         try:
             filename = self.c_data.filename
 
-            for index, names, output in pool.imap_unordered(classify_parallel, itertools.izip(itertools.repeat((self.classifier, self.param_grid, scoring, filename, self.features_selected)), mask_pairs)):
+            for output in pool.imap_unordered(
+                classify_parallel, itertools.izip(
+                    itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist))), 
+                    mask_pairs)):
 
+                index = output['index']
+                names = output['names']
                 self.class_score[index] = output['score']
-
                 self.fit_clfs[index] = output['clf']
 
                 if self.param_grid:  # Just get the FIs if you used a grid
@@ -233,10 +214,8 @@ class MaskClassifier:
             pool.close()
             pool.join()
 
-        self.class_score = np.ma.masked_array(self.class_score,
-                                              self.class_score == 0)
-        self.dummy_score = np.ma.masked_array(self.dummy_score,
-                                              self.dummy_score == 0)
+        self.class_score = np.ma.masked_array(self.class_score, self.class_score == 0)
+        self.dummy_score = np.ma.masked_array(self.dummy_score, self.dummy_score == 0)
 
         self.final_score = self.class_score - self.dummy_score
 
