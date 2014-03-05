@@ -32,20 +32,10 @@ from tempfile import mkdtemp
 import os.path as path
 
 
-def get_index_path(pair):
-    """ returns index, pair path """
-    return (pair[0][1], pair[1][1]), [pair[0][0], pair[1][0]]
-
-def invert_y(y):
-    y = y + 1
-    y[y == 2] = 0
-
-    return np.flipud(y)
-
 def LassoCV_parallel(args):
     c_data, pair = args
 
-    index, _ = get_index_path(pair)
+    index, _ = tools.get_index_path(pair)
 
     X, y = c_data[index]
 
@@ -64,7 +54,7 @@ def get_ns_for_pairs(a_b_c):
     """Convert `f([1,2])` to `f(1,2)` call."""
     dataset, pair, thresh = a_b_c
 
-    index, names = get_index_path(pair)
+    index, names = tools.get_index_path(pair)
 
     X, y = classify.get_studies_by_regions(dataset, names, thresh)
 
@@ -72,29 +62,13 @@ def get_ns_for_pairs(a_b_c):
     return (index, n)
 
 
-def calculate_feature_corr(clf):
-    f_corr = np.empty(clf.feature_importances.shape)
-
-    for i in range(0, clf.c_data.shape[0]):
-        for j in range(0, clf.c_data.shape[1]):
-
-            if i == j:
-                f_corr[i, j] = None
-            else:
-                data, classes = clf.c_data[i, j]
-
-                f_corr[i, j] = np.apply_along_axis(
-                    lambda x: stats.pearsonr(x, classes), 0, data)[0]
-
-    clf.feature_corr = np.ma.masked_array(f_corr, mask=np.isnan(f_corr))
-
-
 def classify_parallel(args):
     (classifier, param_grid, scoring, filename, features_selected), pair = args
 
-    index, names = get_index_path(pair)
+    index, names = tools.get_index_path(pair)
 
-    c_data = np.memmap(filename, dtype='object', mode='r', shape=features_selected.shape)
+    c_data = np.memmap(filename, dtype='object', mode='r',
+                       shape=features_selected.shape)
 
     X, y = c_data[index]
 
@@ -143,7 +117,8 @@ class MaskClassifier:
         self.fit_clfs = np.empty((self.mask_num, self.mask_num), object)
 
         filename = path.join(mkdtemp(), 'c_data.dat')
-        self.c_data = np.memmap(filename, dtype='object', mode='w+', shape=(self.mask_num, self.mask_num))
+        self.c_data = np.memmap(filename, dtype='object',
+                                mode='w+', shape=(self.mask_num, self.mask_num))
 
         self.cv = cv
 
@@ -156,36 +131,17 @@ class MaskClassifier:
         else:
             self.feature_ranking = None
 
-    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=4):
-
-        mask_pairs = list(itertools.permutations(self.masklist, 2))
-
-        pb = tools.ProgressBar(len(list(mask_pairs)))
-
-        if features:
-            self.feature_names = features
-        else:
-            self.feature_names = self.dataset.get_feature_names()
-
-        # Make feature importance grid w/ masked diagonals
-        self.feature_importances = np.ma.masked_array(np.zeros((self.mask_num,
-                                                                self.mask_num, len(self.feature_names))))
-        i, j, k = np.meshgrid(
-            *map(np.arange, self.feature_importances.shape), indexing='ij')
-        self.feature_importances.mask = (i == j)
-
-        self.features_selected = np.empty(
-            (self.mask_num, self.mask_num), object)
-        if feat_select == 'lasso':
-            self.alphas = np.empty((self.mask_num, self.mask_num))
+    def load_data(self, features, mask_pairs, X_threshold):
+        """ Load data into c_data """
 
         print "Loading data..."
+        pb = tools.ProgressBar(len(list(mask_pairs)))
 
         pb.next()
 
         # Load data
         for pair in mask_pairs:
-            index, names = get_index_path(pair)
+            index, names = tools.get_index_path(pair)
 
             X, y = classify.get_studies_by_regions(
                 self.dataset, names, threshold=self.thresh, features=features, regularization='scale')
@@ -198,6 +154,30 @@ class MaskClassifier:
             self.c_data[index] = (X, y)
 
             pb.next()
+
+    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=4):
+
+        mask_pairs = list(itertools.permutations(self.masklist, 2))
+
+        if features:
+            self.feature_names = features
+        else:
+            self.feature_names = self.dataset.get_feature_names()
+
+        # Make feature importance grid w/ masked diagonals
+        self.feature_importances = tools.mask_diagonal(
+            np.ma.masked_array(np.zeros((self.mask_num,
+                                         self.mask_num, len(self.feature_names)))))
+
+        self.features_selected = np.empty(
+            (self.mask_num, self.mask_num), object)
+
+        self.load_data(features, mask_pairs, X_threshold)
+
+        pb = tools.ProgressBar(len(list(mask_pairs)))
+
+        if feat_select == 'lasso':
+            self.alphas = np.empty((self.mask_num, self.mask_num))
 
         if feat_select is 'lasso':
             print "Running LASSO..."
@@ -215,7 +195,7 @@ class MaskClassifier:
             selector = SelectKBest(k=int(n))
 
             for pair in mask_pairs:
-                index, _ = get_index_path(pair)
+                index, _ = tools.get_index_path(pair)
                 X, y = self.c_data[index]
 
                 self.features_selected[index] = np.where(
@@ -274,8 +254,6 @@ class MaskClassifier:
         self.final_score = self.class_score - self.dummy_score
 
         self.status = 1
-
-        self.c_data = np.array(self.c_data)
 
     def calculate_ns(self):
         mask_pairs = list(itertools.combinations(self.masklist, 2))
