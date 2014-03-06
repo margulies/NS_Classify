@@ -69,7 +69,6 @@ def classify_parallel(args):
     
     X, y = np.memmap(filename, dtype='object', mode='r',
                        shape=(length, length))[index]
-    X = X.toarray()
 
     output = classify.classify(
         X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',

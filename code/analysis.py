@@ -52,7 +52,8 @@ craddock_masks = [["craddock_" + folder, glob.glob(craddock_dir + folder + "/*")
 # reduced_topics = ["topic_" + str(int(topic[0])) for topic in twr]
 
 # reduced_topics_2 = ["topic_" + str(int(topic[0]))
-#                     for topic in csv.reader(open('../data/topic_notjunk.txt', 'rbU'), quoting=False)]
+# for topic in csv.reader(open('../data/topic_notjunk.txt', 'rbU'),
+# quoting=False)]
 
 # junk_topics_2 = list(set(dataset_topics_40.get_feature_names())
 #                      - set(reduced_topics_2))
@@ -65,7 +66,6 @@ craddock_masks = [["craddock_" + folder, glob.glob(craddock_dir + folder + "/*")
 # dataset_topics_40_thresh.feature_table.data = sparse.csr_matrix(x)
 
 
-
 dataset_abstracts = Dataset.load("../data/dataset_abstracts.pkl")
 
 
@@ -75,11 +75,35 @@ def complete_analysis(name, masklist, features=None):
 
     i = 0.07
 
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
+    	name + "_50b_Ridge_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="50-best")
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
-    		param_grid=None, classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
-    	name + "_Ridge_abstract_words_t_" + str(i), features=features, processes=8, feat_select=None)
+    		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
+    	name + "_500b_Ridge_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="500-best")
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i),
+    	name + "_50b_GB_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="50-best")
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i),
+    	name + "_100b_GB_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="100-best")
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i),
+    	name + "_500b_GB_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="500-best")
 
 
 #     all_terms = dataset.get_feature_names()
@@ -89,9 +113,9 @@ def complete_analysis(name, masklist, features=None):
 #     features=all_terms[:50])
 
 
-# Begin logging                                                                                     
+# Begin logging
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 try:
-    complete_analysis(*craddock_masks[4])
+    complete_analysis(*craddock_masks[7])
 finally:
     sys.stdout.end()
