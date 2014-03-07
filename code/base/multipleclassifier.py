@@ -22,10 +22,6 @@ from plotting import heat_map
 
 from statistics import shannons
 
-from sklearn.feature_selection.univariate_selection import SelectKBest
-
-import re
-
 from scipy import sparse
 
 from tempfile import mkdtemp
@@ -69,6 +65,7 @@ def classify_parallel(args):
     
     X, y = np.memmap(filename, dtype='object', mode='r',
                        shape=(length, length))[index]
+    X = X.toarray()
 
     output = classify.classify(
         X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
@@ -413,7 +410,8 @@ class MaskClassifier:
             rev_axis = 0
 
         for i in subset:
-            region_data = np.array(filter(None, fi[subset.index(i)]))
+            s = fi[subset.index(i)]
+            region_data = s.compressed().reshape((s.shape[0]-1, s.shape[1]))
 
             if method == 'var':
                 results.append(np.apply_along_axis(np.var, axis, region_data))
