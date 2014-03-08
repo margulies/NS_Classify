@@ -193,7 +193,7 @@ class MaskClassifier:
                 else:
                     try:
                         self.feature_importances[
-                            index] = self.fit_clfs[index].coef_[0]
+                            index] = self.fit_clfs[index].clf.coef_[0]
                     except AttributeError:
                         try:
                             self.feature_importances[index] = self.fit_clfs[
@@ -404,21 +404,11 @@ class MaskClassifier:
 
         fi = self.feature_importances[subset][:, subset]
 
-        if axis == 0:
-            rev_axis = 1
-        else:
-            rev_axis = 0
-
         for i in subset:
-            s = fi[subset.index(i)]
-            region_data = s.compressed().reshape((s.shape[0]-1, s.shape[1]))
+            region_data = fi[subset.index(i)]
 
             if method == 'var':
                 results.append(np.apply_along_axis(np.var, axis, region_data))
-
-            elif method == 'cor':
-                x = np.corrcoef(region_data, rowvar=rev_axis).flatten()
-                results.append(np.ma.masked_array(x, np.equal(x, 1)))
 
             elif method == 'shannons':
                 results.append(
