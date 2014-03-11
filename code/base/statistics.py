@@ -8,6 +8,8 @@ def shannons(x):
     if np.isnan(x.mean()) or x.mean() == 0.0:
         return 0.0
     else:
+    	# Don't allow values below 0
+    	x = np.abs(x.min()) + x + 0.00001
         x = x.astype('float')
         x = (x / x.sum())
         x = x * np.log(x)

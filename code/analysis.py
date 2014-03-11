@@ -75,6 +75,13 @@ def complete_analysis(name, masklist, features=None):
 
     i = 0.07
 
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
+    	name + "_50b_Ridge_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="25-best")
+
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
     		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
@@ -90,8 +97,8 @@ def complete_analysis(name, masklist, features=None):
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
     		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
-    	name + "_200b_Ridge_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="200-best")
+    	name + "_50b_Ridge_abstract_words_t_" + str(i), 
+    	features=features, processes=16, feat_select="25-best")
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
@@ -105,11 +112,7 @@ def complete_analysis(name, masklist, features=None):
     	name + "_100b_GB_abstract_words_t_" + str(i), 
     	features=features, processes=16, feat_select="100-best")
 
-    pipeline(
-    	MaskClassifier(dataset_abstracts, masklist,
-    		cv='4-Fold', thresh=i),
-    	name + "_200b_GB_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="200-best")
+
 
 
 #     all_terms = dataset.get_feature_names()

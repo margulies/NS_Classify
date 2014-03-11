@@ -27,6 +27,8 @@ from scipy import sparse
 from tempfile import mkdtemp
 import os.path as path
 
+import re
+
 
 def LassoCV_parallel(args):
     c_data, pair = args
@@ -152,10 +154,16 @@ class MaskClassifier:
         else:
             self.feature_names = self.dataset.get_feature_names()
 
+        if feat_select is not None and re.match('.*-best', feat_select) is not None:
+            self.n_features = feat_select.split('-')[0]
+        else:
+            self.n_features = len(self.feature_names)
+
+
         # Make feature importance grid w/ masked diagonals
         self.feature_importances = tools.mask_diagonal(
             np.ma.masked_array(np.zeros((self.mask_num,
-                                         self.mask_num, len(self.feature_names)))))
+                                         self.mask_num, self.n_features))))
 
         self.features_selected = np.empty(
             (self.mask_num, self.mask_num), object)
@@ -201,6 +209,8 @@ class MaskClassifier:
                         except AttributeError:
                             pass
 
+                self.features_selected[index] = output['features_selected']
+                
                 self.dummy_score[index] = classify.classify_regions(
                     self.dataset, names,
                     method='Dummy', threshold=self.thresh)['score']
