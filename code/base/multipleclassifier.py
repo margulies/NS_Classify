@@ -155,7 +155,7 @@ class MaskClassifier:
             self.feature_names = self.dataset.get_feature_names()
 
         if feat_select is not None and re.match('.*-best', feat_select) is not None:
-            self.n_features = feat_select.split('-')[0]
+            self.n_features = int(feat_select.split('-')[0])
         else:
             self.n_features = len(self.feature_names)
 
