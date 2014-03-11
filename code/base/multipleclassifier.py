@@ -73,8 +73,6 @@ def classify_parallel(args):
         X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
         class_weight='auto', scoring=scoring, param_grid=param_grid, feat_select=feat_select)
 
-    output['clf'].fit(X, y) # Is this necessary?
-
     output['index'] = index
     output['names'] = names
 
@@ -173,21 +171,21 @@ class MaskClassifier:
         print "Classifying..."
         pb = tools.ProgressBar(len(list(mask_pairs)), start=True)
 
-        pool = Pool(processes=processes)
+        # pool = Pool(processes=processes)
 
         try:
             filename = self.c_data.filename
 
-            for output in pool.imap_unordered(
+            for output in itertools.imap(
                 classify_parallel, itertools.izip(
                     itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist))), 
                     mask_pairs)):
 
+                import pdb; pdb.set_trace()
                 index = output['index']
                 names = output['names']
                 self.class_score[index] = output['score']
                 self.fit_clfs[index] = output['clf']
-
                 if self.param_grid:  # Just get the FIs if you used a grid
                     try:
                         self.feature_importances[index] = self.fit_clfs[

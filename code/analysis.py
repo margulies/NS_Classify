@@ -80,7 +80,7 @@ def complete_analysis(name, masklist, features=None):
     	MaskClassifier(dataset_abstracts, masklist,
     		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
     	name + "_50b_Ridge_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="25-best")
+    	features=features, processes=1, feat_select="25-best")
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
@@ -125,6 +125,6 @@ def complete_analysis(name, masklist, features=None):
 # Begin logging
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 try:
-    complete_analysis(*craddock_masks[7])
+    complete_analysis(*craddock_masks[0])
 finally:
     sys.stdout.end()

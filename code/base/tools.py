@@ -100,3 +100,5 @@ def calculate_feature_corr(clf):
                     lambda x: stats.pearsonr(x, classes), 0, data)[0]
 
     clf.feature_corr = np.ma.masked_array(f_corr, mask=np.isnan(f_corr))
+
+
