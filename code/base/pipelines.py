@@ -44,18 +44,14 @@ def post_processing(clf, basename):
 		range(1, clf.mask_num), clf.feature_names, file_name=basename +
 		"var_hm_0.png")
 
-	heat_map(clf.importance_stats(method='cor', axis=0, average=False).T,
-		range(0, clf.mask_num), clf.feature_names,
-		file_name=basename+"_cor_hm_0.png")
-
 	print "Making sparsity heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=1, average=False).T,
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename + "shannons_hm_1.png")
 	heat_map(clf.importance_stats(method='var', axis=1, average=False).T,
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"var_hm_1.png")
-	heat_map(clf.importance_stats(method='cor', axis=1, average=False).T,
-		range(0, clf.mask_num), clf.feature_names,
-		file_name=basename+"_cor_hm_1.png")
+	# heat_map(clf.importance_stats(method='cor', axis=1, average=False).T,
+	# 	range(0, clf.mask_num), clf.feature_names,
+	# 	file_name=basename+"_cor_hm_1.png")
 
 	print "Making region importance plots..."
 	clf.save_region_importance_plots(basename)

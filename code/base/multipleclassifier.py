@@ -171,17 +171,16 @@ class MaskClassifier:
         print "Classifying..."
         pb = tools.ProgressBar(len(list(mask_pairs)), start=True)
 
-        # pool = Pool(processes=processes)
+        pool = Pool(processes=processes)
 
         try:
             filename = self.c_data.filename
 
-            for output in itertools.imap(
+            for output in pool.imap_unordered(
                 classify_parallel, itertools.izip(
                     itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist))), 
                     mask_pairs)):
 
-                import pdb; pdb.set_trace()
                 index = output['index']
                 names = output['names']
                 self.class_score[index] = output['score']

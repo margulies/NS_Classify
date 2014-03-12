@@ -34,6 +34,7 @@ class ProgressBar():
     def __init__(self, total, start=False):
         self.total = total
         self.current = 0.0
+        self.last_int = 0
         if start:
             self.next()
 
@@ -46,7 +47,9 @@ class ProgressBar():
             sys.stdout.flush()
 
     def next(self):
-        self.update_progress(int((self.current) / self.total * 100))
+        if not self.last_int == int((self.current) / self.total * 100):
+            self.update_progress(int((self.current) / self.total * 100))
+            self.last_int = int((self.current) / self.total * 100)
 
         if self.current == self.total:
             self.reset()
