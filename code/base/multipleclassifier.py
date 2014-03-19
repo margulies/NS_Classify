@@ -61,7 +61,7 @@ def get_ns_for_pairs(a_b_c):
 
 
 def classify_parallel(args):
-    (classifier, param_grid, scoring, filename, feat_select, length), pair = args
+    (classifier, param_grid, scoring, filename, feat_select, length, class_weight), pair = args
 
     index, names = tools.get_index_path(pair)
     
@@ -71,7 +71,7 @@ def classify_parallel(args):
 
     output = classify.classify(
         X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
-        class_weight='auto', scoring=scoring, param_grid=param_grid, feat_select=feat_select)
+        class_weight=class_weight, scoring=scoring, param_grid=param_grid, feat_select=feat_select)
 
     output['index'] = index
     output['names'] = names
@@ -91,10 +91,9 @@ class MaskClassifier:
 
         self.mask_num = len(self.masklist)
 
-        # Where to store differences, results, n's and dummy results
+        # Where to store differences, results, n's
 
         self.class_score = np.zeros((self.mask_num, self.mask_num))
-        self.dummy_score = np.zeros((self.mask_num, self.mask_num))
 
         self.classifier = classifier
         self.dataset = dataset
@@ -143,14 +142,15 @@ class MaskClassifier:
 
             pb.next()
 
-    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=4):
+    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=1, class_weight = 'auto'):
 
         mask_pairs = list(itertools.permutations(self.masklist, 2))
 
         if features:
             self.feature_names = features
         else:
-            self.feature_names = self.dataset.get_feature_names()
+            # If features leater get selected this is not correct but must be updated
+            self.feature_names = self.dataset.get_feature_names() 
 
         if feat_select is not None and re.match('.*-best', feat_select) is not None:
             self.n_features = int(feat_select.split('-')[0])
@@ -171,20 +171,23 @@ class MaskClassifier:
         print "Classifying..."
         pb = tools.ProgressBar(len(list(mask_pairs)), start=True)
 
-        pool = Pool(processes=processes)
+        if processes > 1:
+            pool = Pool(processes=processes)
+        else:
+            pool = itertools
 
         try:
             filename = self.c_data.filename
 
-            for output in pool.imap_unordered(
+            for output in pool.imap(
                 classify_parallel, itertools.izip(
-                    itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist))), 
+                    itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist), class_weight)), 
                     mask_pairs)):
 
                 index = output['index']
-                names = output['names']
                 self.class_score[index] = output['score']
                 self.fit_clfs[index] = output['clf']
+
                 if self.param_grid:  # Just get the FIs if you used a grid
                     try:
                         self.feature_importances[index] = self.fit_clfs[
@@ -202,25 +205,22 @@ class MaskClassifier:
                     except AttributeError:
                         try:
                             self.feature_importances[index] = self.fit_clfs[
-                                index].feature_importances_
+                                index].clf.feature_importances_
                         except AttributeError:
                             pass
 
                 self.features_selected[index] = output['features_selected']
-                
-                self.dummy_score[index] = classify.classify_regions(
-                    self.dataset, names,
-                    method='Dummy', threshold=self.thresh)['score']
 
                 pb.next()
         finally:
-            pool.close()
-            pool.join()
+            if processes > 1:
+                pool.close()
+                pool.join()
 
         self.class_score = np.ma.masked_array(self.class_score, self.class_score == 0)
-        self.dummy_score = np.ma.masked_array(self.dummy_score, self.dummy_score == 0)
 
-        self.final_score = self.class_score - self.dummy_score
+        #If not dummy (need to implement dummy again in case)
+        self.final_score = self.class_score
 
         self.status = 1
 
@@ -432,6 +432,17 @@ class MaskClassifier:
             return results.mean(axis=1)
         else:
             return results
+            
+    def get_mean_region_importances(self, subset=None):
+
+        if subset is None:
+            subset = range(0, self.mask_num)
+
+        fi = self.feature_importances[subset][:, subset]
+
+        results = np.array(fi.mean(axis=2).mean(axis=0))
+
+        return results
 
     def accuracy_stats(self, method='shannons', subset=None):
 

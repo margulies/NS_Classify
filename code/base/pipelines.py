@@ -19,6 +19,11 @@ def post_processing(clf, basename):
 	print "_____________________"
 	print
 
+	with open(basename + "results.txt", 'w') as f:
+		f.write("Overall accuracy: " + str(clf.final_score.mean()))
+		f.write("Mask averages: " + str(clf.get_mask_averages(precision=3)))
+
+
     # Average classification accuracy brain map
 	clf.make_mask_map(basename + "avg_class.nii.gz", clf.get_mask_averages())
 	print "Made average accuracy map"
@@ -37,7 +42,7 @@ def post_processing(clf, basename):
 	clf.make_mask_map(basename + "acc_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
 	clf.make_mask_map(basename + "clf_var_1.nii.gz", clf.accuracy_stats(method='var'))
 
-	print "Making consistency heat maps..."
+	# print "Making consistency heat maps..."
 	heat_map(clf.importance_stats(method='shannons', axis=0, average=False).T,
 		range(1, clf.mask_num), clf.feature_names, file_name=basename + "shannons_hm_0.png")
 	heat_map(clf.importance_stats(method='var', axis=0, average=False).T,
@@ -49,12 +54,12 @@ def post_processing(clf, basename):
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename + "shannons_hm_1.png")
 	heat_map(clf.importance_stats(method='var', axis=1, average=False).T,
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"var_hm_1.png")
-	# heat_map(clf.importance_stats(method='cor', axis=1, average=False).T,
-	# 	range(0, clf.mask_num), clf.feature_names,
-	# 	file_name=basename+"_cor_hm_1.png")
+	# # heat_map(clf.importance_stats(method='cor', axis=1, average=False).T,
+	# # 	range(0, clf.mask_num), clf.feature_names,
+	# # 	file_name=basename+"_cor_hm_1.png")
 
-	print "Making region importance plots..."
-	clf.save_region_importance_plots(basename)
+	# print "Making region importance plots..."
+	# # clf.save_region_importance_plots(basename)
 
 	print "Making feature importance heatmaps..."
 	clf.region_heatmap(basename)
@@ -62,13 +67,13 @@ def post_processing(clf, basename):
 	clf.region_heatmap(basename, zscore_features=True)
 	clf.region_heatmap(basename, zscore_regions=True, zscore_features=True)
 
-def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_threshold=None, processes=4, feat_select=None):
+def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = 'auto', post = True):
 
     print("Classifier: " + str(clf.classifier))
 
     # Classify and save $ print
     clf.classify(features=features, scoring=scoring,
-                 X_threshold=X_threshold, feat_select=feat_select, processes=processes)
+                 X_threshold=X_threshold, feat_select=feat_select, processes=processes, class_weight = 'auto')
 
     # Make directory for saving
     basename = "../results/" + name
@@ -86,7 +91,8 @@ def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_thres
     # Save classifier
     clf.save(basename + "classifier.pkl")
 
-    post_processing(clf, basename)
+    if post:
+	    post_processing(clf, basename)
 
     # Test-restest reliability
     if retest:

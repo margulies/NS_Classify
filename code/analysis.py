@@ -21,8 +21,11 @@ now = datetime.datetime.now()
 
 # Setup
 
-# Load regular database and topic database
-# dataset = Dataset.load('../data/dataset.pkl')
+# Get old features
+with open('../data/unprocessed/features.txt') as f:
+    reader = csv.reader(f, delimiter="\t")
+    old_features = list(reader)[0][1:]
+
 # dataset_topics = Dataset.load('../data/pickled_topics.pkl')
 # dataset_topics_40 = Dataset.load('../data/dataset_topics_40.pkl')
 
@@ -66,7 +69,10 @@ craddock_masks = [["craddock_" + folder, glob.glob(craddock_dir + folder + "/*")
 # dataset_topics_40_thresh.feature_table.data = sparse.csr_matrix(x)
 
 
-dataset_abstracts = Dataset.load("../data/dataset_abstracts.pkl")
+dataset_abstracts = Dataset.load("../data/datasets/dataset_abstracts.pkl")
+abs_features = dataset_abstracts.get_feature_names()
+filtered_abs_features = list(set(abs_features) & set(old_features))
+
 
 
 # Analyses
@@ -75,30 +81,72 @@ def complete_analysis(name, masklist, features=None):
 
     i = 0.07
 
-    pipeline(
-    	MaskClassifier(dataset_abstracts, masklist,
-    		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
-    	name + "_100b_Ridge_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="100-best")
+    # pipeline(
+    # 	MaskClassifier(dataset_abstracts, masklist,
+    # 		cv='4-Fold', thresh=i, classifier=RidgeClassifier()),
+    # 	name + "_12b_Ridge_a_1_abstract_wordsfilt_t_" + str(i), 
+    # 	features=features, processes=8, feat_select="12-best")
+
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
-    		classifier=RidgeClassifier(), cv='4-Fold', thresh=i),
-    	name + "_25b_Ridge_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="25-best")
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.01)),
+    	name + "_12b_Ridge_a_.01_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="12-best")
+
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
-    		cv='4-Fold', thresh=i),
-    	name + "_50b_GB_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="50-best")
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.01)),
+    	name + "_50b_Ridge_a_.01_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="50-best")
 
     pipeline(
     	MaskClassifier(dataset_abstracts, masklist,
-    		cv='4-Fold', thresh=i),
-    	name + "_100b_GB_abstract_words_t_" + str(i), 
-    	features=features, processes=16, feat_select="100-best")
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.01)),
+    	name + "_100b_Ridge_a_.01_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="100-best")
 
+
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.1)),
+    	name + "_12b_Ridge_a_.1_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="12-best")
+
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.1)),
+    	name + "_50b_Ridge_a_.1_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="50-best")
+
+    pipeline(
+    	MaskClassifier(dataset_abstracts, masklist,
+    		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.1)),
+    	name + "_100b_Ridge_a_.1_abstract_wordsfilt_t_" + str(i), 
+    	features=features, processes=1, feat_select="100-best")
+
+
+
+    # pipeline(
+    # 	MaskClassifier(dataset_abstracts, masklist,
+    # 		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.01)),
+    # 	name + "_200b_Ridge_a_.01_abstract_wordsfilt_t_" + str(i), 
+    # 	features=features, processes=8, feat_select="200-best")
+    # pipeline(
+    # 	MaskClassifier(dataset_abstracts, masklist,
+    # 		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.1)),
+    # 	name + "_12b_Ridge_a_.1_abstract_wordsfilt_t_" + str(i), 
+    # 	features=features, processes=8, feat_select="12-best")
+
+
+    # pipeline(
+    # 	MaskClassifier(dataset_abstracts, masklist,
+    # 		cv='4-Fold', thresh=i, classifier=RidgeClassifier(alpha = 0.1)),
+    # 	name + "_200b_Ridge_a_.1_abstract_words_t_" + str(i), 
+    # 	features=features, processes=8, feat_select="200-best")
 
 
 
@@ -111,7 +159,8 @@ def complete_analysis(name, masklist, features=None):
 
 # Begin logging
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
+
 try:
-    complete_analysis(*craddock_masks[7])
+    complete_analysis(*craddock_masks[0], features = filtered_abs_features)
 finally:
     sys.stdout.end()
