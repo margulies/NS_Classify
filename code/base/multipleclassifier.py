@@ -10,15 +10,14 @@ from sklearn.ensemble import GradientBoostingClassifier
 
 from sklearn.feature_selection import RFE
 
+from sklearn.dummy import DummyClassifier
+
 from scipy import stats
 from sklearn.preprocessing import binarize
 
 from multiprocessing import Pool
-from sklearn.linear_model import LassoCV
 
 import tools
-
-from plotting import heat_map
 
 from statistics import shannons
 
@@ -28,24 +27,6 @@ from tempfile import mkdtemp
 import os.path as path
 
 import re
-
-
-def LassoCV_parallel(args):
-    c_data, pair = args
-
-    index, _ = tools.get_index_path(pair)
-
-    X, y = c_data[index]
-
-    try:
-        L = LassoCV().fit(X, y)
-        fs = np.where(L.coef_ != 0)[0]
-        alpha = L.alpha_
-    except:
-        fs = None
-        alpha = None
-
-    return fs, alpha, index
 
 
 def get_ns_for_pairs(a_b_c):
@@ -61,90 +42,102 @@ def get_ns_for_pairs(a_b_c):
 
 
 def classify_parallel(args):
-    (classifier, param_grid, scoring, filename, feat_select, length, class_weight), pair = args
-
-    index, names = tools.get_index_path(pair)
+    (classifier, param_grid, scoring, filename, feat_select, length, class_weight), index = args
     
     X, y = np.memmap(filename, dtype='object', mode='r',
                        shape=(length, length))[index]
-    X = X.toarray()
 
     output = classify.classify(
-        X, y, classifier=classifier, output='summary_clf', cross_val='4-Fold',
+        X, y, classifier=classifier, cross_val='4-Fold',
         class_weight=class_weight, scoring=scoring, param_grid=param_grid, feat_select=feat_select)
 
     output['index'] = index
-    output['names'] = names
 
     # Remember to add vector to output that keeps track of seleted features to asses stability
     return output
 
 class MaskClassifier:
 
-    def __init__(self, dataset, masks, classifier=GradientBoostingClassifier(), 
+    def __init__(self, dataset, mask_img, classifier=GradientBoostingClassifier(), 
         thresh=0.08, param_grid=None, cv=None):
 
-        self.masklist = zip(masks, range(0, len(masks)))
-
-        self.mask_names = [os.path.basename(os.path.splitext(os.path.splitext(mask)[0])[0])
-                           for mask in masks]
-
-        self.mask_num = len(self.masklist)
+        self.mask_img = mask_img
 
         # Where to store differences, results, n's
-
-        self.class_score = np.zeros((self.mask_num, self.mask_num))
-
         self.classifier = classifier
         self.dataset = dataset
         self.thresh = thresh
         self.param_grid = param_grid
 
         # Fitted classifier
-        self.fit_clfs = np.empty((self.mask_num, self.mask_num), object)
+        self.cv = cv
+
+        self.c_data = None
+
+    def load_data(self, features, X_threshold):
+        """ Load data into c_data """
+        from neurosynth.analysis.reduce import average_within_regions
+
+        # Load Masks by studies matrix
+
+        # ADD FEATURE TO FILTER BY FEATURES
+        masks_by_studies = average_within_regions(self.dataset, self.mask_img, threshold = self.thresh)
+
+        study_ids = self.dataset.feature_table.data.index
+
+        print "Loading data from neurosynth..."
+
+        pb = tools.ProgressBar(len(list(masks_by_studies)), start=True)
+
+        self.ids_by_masks = []
+        self.data_by_masks = []
+        for mask in masks_by_studies:
+
+            m_ids = study_ids[np.where(mask == True)[0]]
+            self.ids_by_masks.append(m_ids)
+            self.data_by_masks.append(self.dataset.get_feature_data(ids=m_ids))
+            pb.next()
+
+        self.mask_num = masks_by_studies.shape[0]    
+        self.mask_pairs = list(itertools.permutations(range(0, self.mask_num), 2))
 
         filename = path.join(mkdtemp(), 'c_data.dat')
         self.c_data = np.memmap(filename, dtype='object',
                                 mode='w+', shape=(self.mask_num, self.mask_num))
-
-        self.cv = cv
-
-        self.status = 0
-
-        if isinstance(self.classifier, RFE):
-            # Fitted classifier
-            self.feature_ranking = np.empty(
-                (self.mask_num, self.mask_num), object)
-        else:
-            self.feature_ranking = None
-
-    def load_data(self, features, mask_pairs, X_threshold):
-        """ Load data into c_data """
-
-        print "Loading data..."
-        pb = tools.ProgressBar(len(list(mask_pairs)))
-
-        pb.next()
-
         # Load data
-        for pair in mask_pairs:
-            index, names = tools.get_index_path(pair)
+        for pair in self.mask_pairs:
+            reg1_ids = self.ids_by_masks[pair[0]]
+            reg2_ids = self.ids_by_masks[pair[1]]
 
-            X, y = classify.get_studies_by_regions(
-                self.dataset, names, threshold=self.thresh, features=features, regularization='scale')
+            reg1_set = list(set(reg1_ids) - set(reg2_ids))
+            reg2_set = list(set(reg2_ids) - set(reg1_ids))
+
+            x1 = self.data_by_masks[pair[0]]
+            x1 = np.array(x1)[np.where(np.in1d(reg1_ids, reg1_set))[0]]
+
+            x2 = self.data_by_masks[pair[1]]
+            x2 = np.array(x2)[np.where(np.in1d(reg2_ids, reg2_set))[0]] 
+
+            y = np.array([0]*len(reg1_set) + [1]*len(reg2_set))
+
+            X = np.vstack((x1, x2))
 
             if X_threshold is not None:
                 X = binarize(X, X_threshold)
 
-            X = sparse.csr_matrix(X)
+            from neurosynth.analysis.classify import regularize
+            X = regularize(X, method='scale')
 
-            self.c_data[index] = (X, y)
+            self.c_data[pair] = (X, y)
 
-            pb.next()
+    def initalize_containers(self, features, feat_select, dummy):
 
-    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=1, class_weight = 'auto'):
+        # Move to an init_containers function
+        self.class_score = tools.mask_diagonal(
+            np.ma.masked_array(np.zeros((self.mask_num,
+                self.mask_num))))
 
-        mask_pairs = list(itertools.permutations(self.masklist, 2))
+        self.fit_clfs = np.empty((self.mask_num, self.mask_num), object)
 
         if features:
             self.feature_names = features
@@ -152,24 +145,34 @@ class MaskClassifier:
             # If features leater get selected this is not correct but must be updated
             self.feature_names = self.dataset.get_feature_names() 
 
-        if feat_select is not None and re.match('.*-best', feat_select) is not None:
-            self.n_features = int(feat_select.split('-')[0])
+        if feat_select is not None:
+            if re.match('.*best', feat_select) is not None:
+                self.n_features = int(feat_select.split('-')[0])
+            self.features_selected = np.empty(
+                (self.mask_num, self.mask_num), object)
         else:
             self.n_features = len(self.feature_names)
 
+        if dummy is not None:
+            self.dummy_score = tools.mask_diagonal(
+                np.ma.masked_array(np.zeros((self.mask_num,
+                   self.mask_num))))
+        else:
+            self.dummy_score = None
 
         # Make feature importance grid w/ masked diagonals
         self.feature_importances = tools.mask_diagonal(
             np.ma.masked_array(np.zeros((self.mask_num,
-                                         self.mask_num, self.n_features))))
+                 self.mask_num, self.n_features))))
 
-        self.features_selected = np.empty(
-            (self.mask_num, self.mask_num), object)
+    def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=1, class_weight = 'auto', dummy = None):
 
-        self.load_data(features, mask_pairs, X_threshold)
+        self.load_data(features, X_threshold)
+
+        self.initalize_containers(features, feat_select, dummy)
 
         print "Classifying..."
-        pb = tools.ProgressBar(len(list(mask_pairs)), start=True)
+        pb = tools.ProgressBar(len(list(self.mask_pairs)), start=True)
 
         if processes > 1:
             pool = Pool(processes=processes)
@@ -181,8 +184,8 @@ class MaskClassifier:
 
             for output in pool.imap(
                 classify_parallel, itertools.izip(
-                    itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, len(self.masklist), class_weight)), 
-                    mask_pairs)):
+                    itertools.repeat((self.classifier, self.param_grid, scoring, filename, feat_select, self.mask_num, class_weight)), 
+                    self.mask_pairs)):
 
                 index = output['index']
                 self.class_score[index] = output['score']
@@ -195,7 +198,7 @@ class MaskClassifier:
                     except AttributeError:
                         try:
                             self.feature_importances[index] = self.fit_clfs[
-                                index].feature_importances_
+                                index].best_estimator.feature_importances_
                         except AttributeError:
                             pass
                 else:
@@ -209,7 +212,15 @@ class MaskClassifier:
                         except AttributeError:
                             pass
 
-                self.features_selected[index] = output['features_selected']
+                if feat_select:
+                    self.features_selected[index] = output['features_selected']
+
+                if dummy is not None:
+                    X, y = self.c_data[index]
+                    output = classify.classify(X, y, classifier=DummyClassifier(strategy=dummy), cross_val='4-Fold',
+                        class_weight=class_weight, scoring=scoring, feat_select=feat_select)
+
+                    self.dummy_score[index] = output['score']
 
                 pb.next()
         finally:
@@ -217,12 +228,10 @@ class MaskClassifier:
                 pool.close()
                 pool.join()
 
-        self.class_score = np.ma.masked_array(self.class_score, self.class_score == 0)
-
-        #If not dummy (need to implement dummy again in case)
-        self.final_score = self.class_score
-
-        self.status = 1
+        if dummy is None:
+            self.final_score = self.class_score
+        else:
+            self.final_score = self.class_score - self.dummy_score
 
     def calculate_ns(self):
         mask_pairs = list(itertools.combinations(self.masklist, 2))
@@ -292,9 +301,6 @@ class MaskClassifier:
         Output:
             A list of tuples with importance feature pairs
         """
-
-        if not self.status:
-            raise Exception("You haven't finished classification yet!")
 
         if ranking:
             if not isinstance(self.classifier, RFE):
@@ -472,7 +478,7 @@ class MaskClassifier:
             results.append(np.array(r).mean())
         return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None):
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, each_region=True):
         """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
         as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
         z-scored. You can also specify a threshold.
@@ -488,6 +494,8 @@ class MaskClassifier:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
             will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
         """
+
+        from plotting import heat_map
 
         if subset is None:
             subset = range(0, self.mask_num)
@@ -517,25 +525,26 @@ class MaskClassifier:
         heat_map(fi, np.array(subset) + 1, self.feature_names,
                  basename + "imps_hm_" + z0 + z1 + t + "overall.png")
 
-        for i in subset:
+        if each_region:
+            for i in subset:
 
-            fi = overall_fi[subset.index(i)].T
+                fi = overall_fi[subset.index(i)].T
 
-            if zscore_regions:
-                fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
-            if zscore_features:
-                fi = stats.zscore(fi, axis=1)
+                if zscore_regions:
+                    fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
+                if zscore_features:
+                    fi = stats.zscore(fi, axis=1)
 
-            if thresh is not None:
-                fi.mask = fi < thresh
+                if thresh is not None:
+                    fi.mask = fi < thresh
 
-            if basename is None:
-                file_name = None
-            else:
-                file_name = basename + "imps_hm_" + \
-                    z0 + z1 + t + str(i) + ".png"
+                if basename is None:
+                    file_name = None
+                else:
+                    file_name = basename + "imps_hm_" + \
+                        z0 + z1 + t + str(i) + ".png"
 
-            heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
+                heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
 
     def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
         if not keep_dataset:

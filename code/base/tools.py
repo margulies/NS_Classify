@@ -69,9 +69,15 @@ def ix_subset(dataset, subset):
 def mask_diagonal(masked_array):
     """ Given a masked array, it returns the same array with the diagonals masked"""
     import numpy as np
-    i, j, k = np.meshgrid(
-        *map(np.arange, masked_array.shape), indexing='ij')
-    masked_array.mask = (i == j)
+
+    if len(masked_array.shape) == 3:
+        i, j, k = np.meshgrid(
+            *map(np.arange, masked_array.shape), indexing='ij')
+        masked_array.mask = (i == j)
+    elif len(masked_array.shape) == 2:
+        i, j = np.meshgrid(
+            *map(np.arange, masked_array.shape), indexing='ij')
+        masked_array.mask = (i == j)
 
     return masked_array
 
@@ -103,5 +109,13 @@ def calculate_feature_corr(clf):
                     lambda x: stats.pearsonr(x, classes), 0, data)[0]
 
     clf.feature_corr = np.ma.masked_array(f_corr, mask=np.isnan(f_corr))
+
+
+def get_mask_ix_dict(clf):
+    import re
+    masks, indexes = zip(*clf.masklist)
+    mask_nums = [int(re.findall("([0-9]+).nii.gz$", p)[0]) for p in masks]
+
+    return dict(zip(mask_nums, indexes))
 
 

@@ -61,6 +61,74 @@ def heat_map(data, x_labels, y_labels, file_name=None):
         fig.savefig(file_name)
 
 
+def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, each_region=True):
+    """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
+    as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
+    z-scored. You can also specify a threshold.
+
+    Args:
+        basename: string, base directory and file name
+        zscore_regions: boolean, should heatmap be z-scored based within regions
+        zscore_regions: boolean, should heatmap be z-scored based within features
+        thresh: value to threshold heatmap. Only values above this value are kept
+        subset: what regions should be plotted? default is all
+
+    Outputs:
+        Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
+        will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
+    """
+
+    from plotting import heat_map
+
+    if subset is None:
+        subset = range(0, self.mask_num)
+
+    overall_fi = self.feature_importances[subset][:, subset]
+    if np.array(subset).max() > self.mask_num:
+        print "Warning: you entered an incorrect mask index!"
+
+    fi = overall_fi.mean(axis=0).T
+
+    z0 = ""
+    z1 = ""
+    t = ""
+
+    if zscore_regions:
+        fi = np.apply_along_axis(stats.zscore, 0, fi)
+        z0 = "z0_"
+    if zscore_features:
+        fi = np.apply_along_axis(stats.zscore, 1, fi)
+        z1 = "z1_"
+
+    if thresh is not None:
+        fi = np.ma.masked_array(fi)
+        fi.mask = fi < thresh
+        t = "zt" + str(thresh) + "_"
+
+    heat_map(fi, np.array(subset) + 1, self.feature_names,
+             basename + "imps_hm_" + z0 + z1 + t + "overall.png")
+
+    if each_region:
+        for i in subset:
+
+            fi = overall_fi[subset.index(i)].T
+
+            if zscore_regions:
+                fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
+            if zscore_features:
+                fi = stats.zscore(fi, axis=1)
+
+            if thresh is not None:
+                fi.mask = fi < thresh
+
+            if basename is None:
+                file_name = None
+            else:
+                file_name = basename + "imps_hm_" + \
+                    z0 + z1 + t + str(i) + ".png"
+
+            heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
+
 # def plot_min_max_fi(clf):
 #     density_plot(
 #         clf.feature_importances[tuple(np.where(sh_1 == sh_1.min())[0])],

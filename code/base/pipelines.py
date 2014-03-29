@@ -10,19 +10,6 @@ from multipleclassifier import MaskClassifier
 def post_processing(clf, basename):
 	"""Given a MaskClassifier object and a basename, perform post processing"""
 
-	print "_____________________"
-	print "Descriptive results:"
-	print "Overall accuracy: " + str(clf.final_score.mean())
-
-	print "Mask averages: " + str(clf.get_mask_averages(precision=3))
-
-	print "_____________________"
-	print
-
-	with open(basename + "results.txt", 'w') as f:
-		f.write("Overall accuracy: " + str(clf.final_score.mean()))
-		f.write("Mask averages: " + str(clf.get_mask_averages(precision=3)))
-
 
     # Average classification accuracy brain map
 	clf.make_mask_map(basename + "avg_class.nii.gz", clf.get_mask_averages())
@@ -67,13 +54,13 @@ def post_processing(clf, basename):
 	clf.region_heatmap(basename, zscore_features=True)
 	clf.region_heatmap(basename, zscore_regions=True, zscore_features=True)
 
-def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = 'auto', post = True):
+def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = None, post = True, dummy = None):
 
     print("Classifier: " + str(clf.classifier))
 
     # Classify and save $ print
     clf.classify(features=features, scoring=scoring,
-                 X_threshold=X_threshold, feat_select=feat_select, processes=processes, class_weight = 'auto')
+                 X_threshold=X_threshold, feat_select=feat_select, processes=processes, class_weight = class_weight, dummy = dummy)
 
     # Make directory for saving
     basename = "../results/" + name
@@ -89,29 +76,41 @@ def pipeline(clf, name, features=None, retest=False, scoring='accuracy', X_thres
     print basename
 
     # Save classifier
-    clf.save(basename + "classifier.pkl")
+    clf.save(basename + "classifier.pkl", keep_cdata=True)
+
+    print "_____________________"
+    print "Descriptive results:"
+    print "Overall accuracy: " + str(clf.final_score.mean())
+
+    if clf.dummy_score is not None:
+    	print "Classifier averages: " + str(clf.class_score.mean())
+    	print "Dummy averages: " + str(clf.dummy_score.mean())
+    	from scipy import stats
+    	print "Correlation between dummy and clf: " + str(stats.pearsonr(clf.class_score.flatten(), clf.dummy_score.flatten()))
+
+    print "Mask averages: " + str(clf.get_mask_averages(precision=3))
+
+    print "_____________________"
+    print
+
+    with open(basename + "results.txt", 'w') as f:
+    	f.write("Overall accuracy: " + str(clf.final_score.mean()))
+    	f.write("Mask averages: " + str(clf.get_mask_averages(precision=3)))
+
+    	if clf.dummy_score is not None:
+			f.write("Classifier averages: " + str(clf.class_score.mean()))
+			f.write("Dummy averages: " + str(clf.dummy_score.mean()))
+			from scipy import stats
+			f.write("Correlation between dummy and clf: " + str(stats.pearsonr(clf.class_score.flatten(), clf.dummy_score.flatten())))
 
     if post:
 	    post_processing(clf, basename)
 
-    # Test-restest reliability
-    if retest:
-    	print "Retesting..."
-    	clf2 = clf
-    	clf2.classify(features=features)
-    	from scipy.stats import pearsonr
-    	flat1 = clf.feature_importances.flatten()
-    	flat2 = clf2.feature_importances.flatten()
-    	cors = []
-    	for num, item in enumerate(flat1):
-    		if item is not None:
-    			cors.append(pearsonr(item, flat2[num])[0])
-    	avg_cor = np.array(cors).mean()
-    	print "Pearson r of test and retest importances: " + str(avg_cor)
     return clf
 
 def load_process(basename):
 	""" Load and process classifier """
+	basename = basename + "/"
 	try:
 		clf = MaskClassifier.load(basename + "classifier.pkl")
 	except IOError:
