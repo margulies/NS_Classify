@@ -76,7 +76,7 @@ def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, pro
     print basename
 
     # Save classifier
-    clf.save(basename + "classifier.pkl", keep_cdata=True)
+    clf.save(basename + "classifier.pkl")
 
     print "_____________________"
     print "Descriptive results:"

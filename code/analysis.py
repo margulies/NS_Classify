@@ -12,12 +12,12 @@ import datetime
 # from sklearn.linear_model import BayesianRidge
 # from sklearn.linear_model import ARDRegression
 
-# from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import RidgeClassifier
 from sklearn.linear_model import RidgeClassifierCV
 
 # from sklearn.linear_model import Lasso
 
-from sklearn.linear_model import LassoCV
+# from sklearn.linear_model import LassoCV
 
 
 from base.multipleclassifier import MaskClassifier
@@ -26,16 +26,16 @@ from base.pipelines import pipeline
 
 from neurosynth.base.dataset import Dataset
 
-import numpy as np
+# import numpy as np
 
 now = datetime.datetime.now()
 
 # Setup
 
-# Get old features
-# with open('../data/unprocessed/original/features.txt') as f:
-#     reader = csv.reader(f, delimiter="\t")
-#     old_features = list(reader)[0][1:]
+#Get old features
+with open('../data/unprocessed/original/features.txt') as f:
+    reader = csv.reader(f, delimiter="\t")
+    old_features = list(reader)[0][1:]
 
 # dataset_topics = Dataset.load('../data/pickled_topics.pkl')
 # dataset_topics_40 = Dataset.load('../data/dataset_topics_40.pkl')
@@ -91,17 +91,17 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 
     i = 0.1
 
-    pipeline(
-    	MaskClassifier(dataset, masklist,
-    		cv='4-Fold', thresh=i),
-    	name + "_GB_DM_" + dataset_name + "_t_" + str(i), 
-    	features=features, processes=processes, post = False, scoring = 'accuracy', dummy = 'most_frequent')
+    # pipeline(
+    # 	MaskClassifier(dataset, masklist,
+    # 		cv='4-Fold', thresh=i),
+    # 	name + "_GB_DM_f1_" + dataset_name + "_t_" + str(i), 
+    # 	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
 
     pipeline(
     	MaskClassifier(dataset, masklist,
-    		cv='4-Fold', thresh=i, classifier=RidgeClassifierCV(alphas = np.array([0.01, 0.1, 1, 12]))),
-    	name + "_RidgeClassifierCV_DM_" + dataset_name + "_t_" + str(i), 
-    	features=features, processes=processes, post = False, scoring = 'accuracy', dummy = 'most_frequent')
+    		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
+    	name + "_RidgeClassifier_DM_f1_" + dataset_name + "_t_" + str(i), 
+    	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
 
     # pipeline(
     # 	MaskClassifier(dataset, masklist,
@@ -113,9 +113,10 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 try:
-	complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_11", "../masks/ns_kmeans_all/kmeans_all_11.nii.gz", processes = 16, features=None)
-	complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 16, features=None)
-	complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 16, features=None)
+	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
+	# complete_analysis(dataset_abstracts, "abstract_words", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
+	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
+	complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
 
 finally:
     sys.stdout.end()

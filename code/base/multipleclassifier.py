@@ -31,14 +31,9 @@ import re
 
 def get_ns_for_pairs(a_b_c):
     """Convert `f([1,2])` to `f(1,2)` call."""
-    dataset, pair, thresh = a_b_c
+    X, y = a_b_c
 
-    index, names = tools.get_index_path(pair)
-
-    X, y = classify.get_studies_by_regions(dataset, names, thresh)
-
-    n = np.bincount(y)
-    return (index, n)
+    return np.bincount(y)
 
 
 def classify_parallel(args):
@@ -59,7 +54,7 @@ def classify_parallel(args):
 class MaskClassifier:
 
     def __init__(self, dataset, mask_img, classifier=GradientBoostingClassifier(), 
-        thresh=0.08, param_grid=None, cv=None):
+        thresh=0.08, param_grid=None, cv=None, mem_save=False):
 
         self.mask_img = mask_img
 
@@ -72,7 +67,10 @@ class MaskClassifier:
         # Fitted classifier
         self.cv = cv
 
+        self.memsave = memsave
+
         self.c_data = None
+
 
     def load_data(self, features, X_threshold):
         """ Load data into c_data """
@@ -130,6 +128,10 @@ class MaskClassifier:
 
             self.c_data[pair] = (X, y)
 
+        if self.memsave:
+            self.data_by_masks = []
+            self.ids_by_masks = []
+
     def initalize_containers(self, features, feat_select, dummy):
 
         # Move to an init_containers function
@@ -137,7 +139,8 @@ class MaskClassifier:
             np.ma.masked_array(np.zeros((self.mask_num,
                 self.mask_num))))
 
-        self.fit_clfs = np.empty((self.mask_num, self.mask_num), object)
+        if self.memsave is False:
+            self.fit_clfs = np.empty((self.mask_num, self.mask_num), object)
 
         if features:
             self.feature_names = features
@@ -161,9 +164,12 @@ class MaskClassifier:
             self.dummy_score = None
 
         # Make feature importance grid w/ masked diagonals
-        self.feature_importances = tools.mask_diagonal(
-            np.ma.masked_array(np.zeros((self.mask_num,
-                 self.mask_num, self.n_features))))
+        filename = path.join(mkdtemp(), 'fis.dat')
+        self.feature_importances = np.memmap(filename,
+                                mode='w+', shape=(self.mask_num, self.mask_num, self.n_features))
+
+        self.feature_importances = tools.mask_diagonal(self.feature_importances)
+
 
     def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=1, class_weight = 'auto', dummy = None):
 
@@ -189,7 +195,8 @@ class MaskClassifier:
 
                 index = output['index']
                 self.class_score[index] = output['score']
-                self.fit_clfs[index] = output['clf']
+                if self.memsave is False:
+                    self.fit_clfs[index] = output['clf']
 
                 if self.param_grid:  # Just get the FIs if you used a grid
                     try:
@@ -478,7 +485,7 @@ class MaskClassifier:
             results.append(np.array(r).mean())
         return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, each_region=True):
+    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, compare=False, each_region=True):
         """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
         as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
         z-scored. You can also specify a threshold.
@@ -489,6 +496,7 @@ class MaskClassifier:
             zscore_regions: boolean, should heatmap be z-scored based within features
             thresh: value to threshold heatmap. Only values above this value are kept
             subset: what regions should be plotted? default is all
+            each_region: make a heat map for every single subregion
 
         Outputs:
             Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
@@ -500,7 +508,11 @@ class MaskClassifier:
         if subset is None:
             subset = range(0, self.mask_num)
 
-        overall_fi = self.feature_importances[subset][:, subset]
+        if compare is False:
+            overall_fi = self.feature_importances[subset][:, subset]
+        else:
+            overall_fi = self.feature_importances[:, subset]
+
         if np.array(subset).max() > self.mask_num:
             print "Warning: you entered an incorrect mask index!"
 
@@ -522,8 +534,12 @@ class MaskClassifier:
             fi.mask = fi < thresh
             t = "zt" + str(thresh) + "_"
 
-        heat_map(fi, np.array(subset) + 1, self.feature_names,
-                 basename + "imps_hm_" + z0 + z1 + t + "overall.png")
+        if basename is None:
+            file_name = None
+        else:
+            file_name = basename + "imps_hm_" + z0 + z1 + t + "overall.png"
+
+        heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
 
         if each_region:
             for i in subset:
