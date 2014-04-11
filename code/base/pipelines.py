@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
-import numpy as np
 from plotting import heat_map
 from multipleclassifier import MaskClassifier
+import multipleclassifier as mc
 
 
 def post_processing(clf, basename):
@@ -12,47 +12,41 @@ def post_processing(clf, basename):
 
 
     # Average classification accuracy brain map
-	clf.make_mask_map(basename + "avg_class.nii.gz", clf.get_mask_averages())
+	mc.make_mask_map(clf, basename + "avg_class.nii.gz", mc.get_mask_averages(clf, ))
 	print "Made average accuracy map"
 
 	print "Making consistency brain maps.."
-	clf.make_mask_map(basename + "imps_shannons_0.nii.gz", clf.importance_stats(method='shannons'))
-	clf.make_mask_map(basename + "imps_var_0.nii.gz", clf.importance_stats(method='var'))
-	# clf.make_mask_map(basename + "imps_cor_0.nii.gz", clf.importance_stats(method='cor'))
-	clf.make_mask_map(basename + "acc_shannons_0.nii.gz", clf.accuracy_stats(method='shannons'))
-	clf.make_mask_map(basename + "clf_var_0.nii.gz", clf.accuracy_stats(method='var'))
+	mc.make_mask_map(clf, basename + "imps_shannons_0.nii.gz", mc.importance_stats(clf, method='shannons'))
+	mc.make_mask_map(clf, basename + "imps_var_0.nii.gz", mc.importance_stats(clf, method='var'))
+	# mc.make_mask_map(basename + "imps_cor_0.nii.gz", mc.importance_stats(method='cor'))
+	mc.make_mask_map(clf, basename + "acc_shannons_0.nii.gz", mc.accuracy_stats(clf, method='shannons'))
+	mc.make_mask_map(clf, basename + "clf_var_0.nii.gz", mc.accuracy_stats(clf, method='var'))
 
 	print "Making sparsity brain maps.."
-	clf.make_mask_map(basename + "imps_shannons_1.nii.gz", clf.importance_stats(method='shannons', axis=1))
-	clf.make_mask_map(basename + "imps_var_1.nii.gz", clf.importance_stats(method='var', axis=1))
-	# clf.make_mask_map(basename + "imps_cor_1.nii.gz", clf.importance_stats(method='cor', axis=1))
-	clf.make_mask_map(basename + "acc_shannons_1.nii.gz", clf.accuracy_stats(method='shannons'))
-	clf.make_mask_map(basename + "clf_var_1.nii.gz", clf.accuracy_stats(method='var'))
+	mc.make_mask_map(clf, basename + "imps_shannons_1.nii.gz", mc.importance_stats(clf, method='shannons', axis=1))
+	mc.make_mask_map(clf, basename + "imps_var_1.nii.gz", mc.importance_stats(clf, method='var', axis=1))
+	# mc.make_mask_map(clf, basename + "imps_cor_1.nii.gz", mc.importance_stats(clf, method='cor', axis=1))
+	mc.make_mask_map(clf, basename + "acc_shannons_1.nii.gz", mc.accuracy_stats(clf, method='shannons'))
+	mc.make_mask_map(clf, basename + "clf_var_1.nii.gz", mc.accuracy_stats(clf, method='var'))
 
 	# print "Making consistency heat maps..."
-	heat_map(clf.importance_stats(method='shannons', axis=0, average=False).T,
+	heat_map(mc.importance_stats(clf, method='shannons', axis=0, average=False).T,
 		range(1, clf.mask_num), clf.feature_names, file_name=basename + "shannons_hm_0.png")
-	heat_map(clf.importance_stats(method='var', axis=0, average=False).T,
+	heat_map(mc.importance_stats(clf, method='var', axis=0, average=False).T,
 		range(1, clf.mask_num), clf.feature_names, file_name=basename +
 		"var_hm_0.png")
 
 	print "Making sparsity heat maps..."
-	heat_map(clf.importance_stats(method='shannons', axis=1, average=False).T,
+	heat_map(mc.importance_stats(clf, method='shannons', axis=1, average=False).T,
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename + "shannons_hm_1.png")
-	heat_map(clf.importance_stats(method='var', axis=1, average=False).T,
+	heat_map(mc.importance_stats(clf, method='var', axis=1, average=False).T,
 		range(1, clf.mask_num), range(0, clf.mask_num), file_name=basename+"var_hm_1.png")
-	# # heat_map(clf.importance_stats(method='cor', axis=1, average=False).T,
-	# # 	range(0, clf.mask_num), clf.feature_names,
-	# # 	file_name=basename+"_cor_hm_1.png")
-
-	# print "Making region importance plots..."
-	# # clf.save_region_importance_plots(basename)
 
 	print "Making feature importance heatmaps..."
-	clf.region_heatmap(basename)
-	clf.region_heatmap(basename, zscore_regions=True)
-	clf.region_heatmap(basename, zscore_features=True)
-	clf.region_heatmap(basename, zscore_regions=True, zscore_features=True)
+	mc.region_heatmap(clf, basename)
+	mc.region_heatmap(clf, basename, zscore_regions=True)
+	mc.region_heatmap(clf, basename, zscore_features=True)
+	mc.region_heatmap(clf, basename, zscore_regions=True, zscore_features=True)
 
 def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = None, post = True, dummy = None):
 
@@ -88,14 +82,14 @@ def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, pro
     	from scipy import stats
     	print "Correlation between dummy and clf: " + str(stats.pearsonr(clf.class_score.flatten(), clf.dummy_score.flatten()))
 
-    print "Mask averages: " + str(clf.get_mask_averages(precision=3))
+    print "Mask averages: " + str(mc.get_mask_averages(clf, precision=3))
 
     print "_____________________"
     print
 
     with open(basename + "results.txt", 'w') as f:
     	f.write("Overall accuracy: " + str(clf.final_score.mean()))
-    	f.write("Mask averages: " + str(clf.get_mask_averages(precision=3)))
+    	f.write("Mask averages: " + str(mc.get_mask_averages(clf, precision=3)))
 
     	if clf.dummy_score is not None:
 			f.write("Classifier averages: " + str(clf.class_score.mean()))

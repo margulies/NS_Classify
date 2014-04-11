@@ -4,7 +4,7 @@
 # import glob
 import sys
 import datetime
-# import csv
+import csv
 # import os
 
 # from random import shuffle
@@ -33,9 +33,9 @@ now = datetime.datetime.now()
 # Setup
 
 #Get old features
-with open('../data/unprocessed/original/features.txt') as f:
-    reader = csv.reader(f, delimiter="\t")
-    old_features = list(reader)[0][1:]
+# with open('../data/unprocessed/original/features.txt') as f:
+#     reader = csv.reader(f, delimiter="\t")
+#     old_features = list(reader)[0][1:]
 
 # dataset_topics = Dataset.load('../data/pickled_topics.pkl')
 # dataset_topics_40 = Dataset.load('../data/dataset_topics_40.pkl')
@@ -78,8 +78,8 @@ with open('../data/unprocessed/original/features.txt') as f:
 
 
 dataset_abstracts = Dataset.load("../data/datasets/dataset_abs_words_pandas.pkl")
-# abs_features = dataset_abstracts.get_feature_names()
-# filtered_abs_features = list(set(abs_features) & set(old_features))
+abs_features = dataset_abstracts.get_feature_names()
+filtered_abs_features = list(set(abs_features) & set(old_features))
 
 dataset_abstracts_topics = Dataset.load("../data/datasets/dataset_abs_topics_pandas.pkl")
 
@@ -100,8 +100,8 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
     pipeline(
     	MaskClassifier(dataset, masklist,
     		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
-    	name + "_RidgeClassifier_DM_f1_" + dataset_name + "_t_" + str(i), 
-    	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
+    	name + "_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
+    	features=features, processes=processes, post = False, dummy = 'most_frequent')
 
     # pipeline(
     # 	MaskClassifier(dataset, masklist,
@@ -116,7 +116,7 @@ try:
 	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
 	# complete_analysis(dataset_abstracts, "abstract_words", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
 	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
-	complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
+	# complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
 
 finally:
     sys.stdout.end()

@@ -51,10 +51,12 @@ def classify_parallel(args):
     # Remember to add vector to output that keeps track of seleted features to asses stability
     return output
 
+
+
 class MaskClassifier:
 
     def __init__(self, dataset, mask_img, classifier=GradientBoostingClassifier(), 
-        thresh=0.08, param_grid=None, cv=None, mem_save=False):
+        thresh=0.08, param_grid=None, cv=None, memsave=False):
 
         self.mask_img = mask_img
 
@@ -70,7 +72,6 @@ class MaskClassifier:
         self.memsave = memsave
 
         self.c_data = None
-
 
     def load_data(self, features, X_threshold):
         """ Load data into c_data """
@@ -170,7 +171,6 @@ class MaskClassifier:
 
         self.feature_importances = tools.mask_diagonal(self.feature_importances)
 
-
     def classify(self, features=None, scoring='accuracy', X_threshold=None, feat_select=None, processes=1, class_weight = 'auto', dummy = None):
 
         self.load_data(features, X_threshold)
@@ -240,60 +240,22 @@ class MaskClassifier:
         else:
             self.final_score = self.class_score - self.dummy_score
 
-    def calculate_ns(self):
-        mask_pairs = list(itertools.combinations(self.masklist, 2))
-        self.ns = np.ma.masked_array(
-            np.empty((self.mask_num, self.mask_num, 2)), True)
+    def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
+        if not keep_dataset:
+            self.dataset = []
+        if not keep_cdata:
+            self.c_data = []
 
-        pb = tools.ProgressBar(len(list(mask_pairs)))
+        if not keep_clfs:
+            self.fit_clfs = []
+        import cPickle
+        cPickle.dump(self, open(filename, 'wb'), -1)
 
-        for index, n in itertools.imap(get_ns_for_pairs, itertools.izip(itertools.repeat(self.dataset), mask_pairs, itertools.repeat(self.thresh))):
-            self.ns[index] = n
-            pb.next()
-
-    def get_mask_averages(self, precision=None, subset=None):
-
-        if subset is not None:
-            final_score = self.final_score[subset][:, subset]
-        else:
-            final_score = self.final_score
-
-        averages = [final_score[k].mean() for k in range(0,
-                                                         final_score.shape[0])]
-
-        if precision is not None:
-            averages = [round(x, precision) for x in averages]
-
-        return averages
-
-    def make_mask_map(self, out_file, data):
-
-        import tempfile
-        folder = tempfile.mkdtemp()
-
-        data = list(data)
-
-        (masks, num) = zip(*self.masklist)
-
-        for (n, v) in enumerate(data):
-
-            fsl.ImageMaths(in_file=masks[n], op_string=' -add '
-                           + str(v) + ' -thr ' + str(v + 0.001),
-                           out_file=folder + '/' + str(n) + '.nii.gz'
-                           ).run()
-
-        fsl.ImageMaths(in_file=folder + '/0.nii.gz', op_string=' -add ' +
-                       folder + '/1', out_file=folder + '/ongoing.nii.gz').run()
-
-        if self.mask_num > 1:
-            for n in range(2, self.mask_num):
-                fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -add '
-                               + folder + '/' + str(n), out_file=folder + '/ongoing.nii.gz').run()
-
-        fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz',
-                       op_string=' -sub 1' + ' -thr 0', out_file=out_file).run()
-
-        print "Made" + out_file
+    @classmethod
+    def load(cls, filename):
+        """ Load a pickled Dataset instance from file. """
+        import cPickle
+        return cPickle.load(open(filename, 'rb'))
 
     def get_importances(self, index, sort=True, relative=True, absolute=False, ranking=False, demeaned=False, zscore=False):
         """ get the importances with feature names given a tuple mask index
@@ -349,232 +311,272 @@ class MaskClassifier:
 
         return imps
 
-    def min_features(self):
-        return np.array([n_features for n_features in self.fit_clfs.flatten()]).mean()
 
-    def plot_importances(self, index, thresh=20, file_name=None, absolute=False, ranking=False):
-        """ Plot importances for a given index 
-        Args:
-            index: Can be an tuple index comparing two masks (2, 3),
-                an integer index (i.e. average for mask 2),
-                or None, which indicates overall average 
-            thresh: Minimum importance to plot
-            file: Optional string indicating location of file to save plot
-                instead of displaying
+def calculate_ns(clf):
+    mask_pairs = list(itertools.combinations(clf.masklist, 2))
+    clf.ns = np.ma.masked_array(
+        np.empty((clf.mask_num, clf.mask_num, 2)), True)
 
-        Output:
-            Either shows plot or saves it
-        """
+    pb = tools.ProgressBar(len(list(mask_pairs)))
 
-        import pylab as pl
+    for index, n in itertools.imap(get_ns_for_pairs, itertools.izip(itertools.repeat(clf.dataset), mask_pairs, itertools.repeat(clf.thresh))):
+        clf.ns[index] = n
+        pb.next()
 
-        [imps, names] = zip(
-            *self.get_importances(index, absolute=absolute, ranking=ranking))
+def get_mask_averages(clf, precision=None, subset=None):
 
-        imps = np.array(imps)
-        imps = imps[imps > thresh]
+    if subset is not None:
+        final_score = clf.final_score[subset][:, subset]
+    else:
+        final_score = clf.final_score
 
-        names = np.array(names)
-        names = names[-len(imps):]
+    averages = [final_score[k].mean() for k in range(0,
+                                                     final_score.shape[0])]
 
-        sorted_idx = np.argsort(imps)
-        pos = np.arange(sorted_idx.shape[0]) + .5
-        pl.subplot(1, 2, 2)
+    if precision is not None:
+        averages = [round(x, precision) for x in averages]
 
-        pl.barh(pos, imps[sorted_idx], align='center')
-        pl.yticks(pos, names[sorted_idx])
-        pl.xlabel('Relative Importance')
-        pl.title('Variable Importance')
+    return averages
 
-        if not file_name:
-            pl.show()
-        else:
-            pl.savefig(file_name, bbox_inches=0)
-            pl.close()
+def make_mask_map(clf, out_file, data):
 
-    def get_best_features(self, n, ranking=True):
-        """ Gets the n best features across all comparisons from a RFE classifier """
+    import tempfile
+    folder = tempfile.mkdtemp()
 
-        return self.get_importances(None, absolute=True, ranking=ranking)[-n:]
+    data = list(data)
 
-    def save_region_importance_plots(self, basename, thresh=20):
-        for i in range(1, self.mask_num):
-            self.plot_importances(
-                i - 1, file_name=basename + "_imps_" + str(i) + ".png", thresh=thresh)
-            self.plot_importances(
-                None, file_name=basename + "_imps_overall.png", thresh=thresh)
+    (masks, num) = zip(*clf.masklist)
 
-    def importance_stats(self, method='shannons', axis=0, average=True, subset=None):
-        """ Returns various statics on the importances for each masks
-        These funcions are intended to be used to summarize how consistent or correlated 
-        the importance matrices are within each region 
+    for (n, v) in enumerate(data):
 
-        axis = 0 applies across regions
-        shape is len(features)
-        axis = 1 is equivalent to applying to within regions
+        fsl.ImageMaths(in_file=masks[n], op_string=' -add '
+                       + str(v) + ' -thr ' + str(v + 0.001),
+                       out_file=folder + '/' + str(n) + '.nii.gz'
+                       ).run()
 
-        average: average results within axis of interest?
-        subset: Only do for a subset of the data
-        """
+    fsl.ImageMaths(in_file=folder + '/0.nii.gz', op_string=' -add ' +
+                   folder + '/1', out_file=folder + '/ongoing.nii.gz').run()
 
-        if subset is None:
-            subset = range(0, self.mask_num)
+    if clf.mask_num > 1:
+        for n in range(2, clf.mask_num):
+            fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz', op_string=' -add '
+                           + folder + '/' + str(n), out_file=folder + '/ongoing.nii.gz').run()
 
-        results = []
+    fsl.ImageMaths(in_file=folder + '/ongoing.nii.gz',
+                   op_string=' -sub 1' + ' -thr 0', out_file=out_file).run()
 
-        fi = self.feature_importances[subset][:, subset]
+    print "Made" + out_file
 
-        for i in subset:
-            region_data = fi[subset.index(i)]
+def min_features(clf):
+    return np.array([n_features for n_features in clf.fit_clfs.flatten()]).mean()
 
-            if method == 'var':
-                results.append(np.apply_along_axis(np.var, axis, region_data))
+def plot_importances(clf, index, thresh=20, file_name=None, absolute=False, ranking=False):
+    """ Plot importances for a given index 
+    Args:
+        index: Can be an tuple index comparing two masks (2, 3),
+            an integer index (i.e. average for mask 2),
+            or None, which indicates overall average 
+        thresh: Minimum importance to plot
+        file: Optional string indicating location of file to save plot
+            instead of displaying
 
-            elif method == 'shannons':
-                results.append(
-                    np.apply_along_axis(shannons, axis, region_data))
+    Output:
+        Either shows plot or saves it
+    """
 
-        results = np.array(results)
+    import pylab as pl
 
-        if axis == 1:
-            results = np.ma.masked_array(results)
-            i, j = np.meshgrid(*map(np.arange, results.shape), indexing='ij')
-            results.mask = (i == j)
+    [imps, names] = zip(
+        *clf.get_importances(index, absolute=absolute, ranking=ranking))
 
-        if average:
-            return results.mean(axis=1)
-        else:
-            return results
+    imps = np.array(imps)
+    imps = imps[imps > thresh]
+
+    names = np.array(names)
+    names = names[-len(imps):]
+
+    sorted_idx = np.argsort(imps)
+    pos = np.arange(sorted_idx.shape[0]) + .5
+    pl.subplot(1, 2, 2)
+
+    pl.barh(pos, imps[sorted_idx], align='center')
+    pl.yticks(pos, names[sorted_idx])
+    pl.xlabel('Relative Importance')
+    pl.title('Variable Importance')
+
+    if not file_name:
+        pl.show()
+    else:
+        pl.savefig(file_name, bbox_inches=0)
+        pl.close()
+
+def get_best_features(clf, n, ranking=True):
+    """ Gets the n best features across all comparisons from a RFE classifier """
+
+    return clf.get_importances(None, absolute=True, ranking=ranking)[-n:]
+
+def save_region_importance_plots(clf, basename, thresh=20):
+    for i in range(1, clf.mask_num):
+        clf.plot_importances(
+            i - 1, file_name=basename + "_imps_" + str(i) + ".png", thresh=thresh)
+        clf.plot_importances(
+            None, file_name=basename + "_imps_overall.png", thresh=thresh)
+
+def importance_stats(clf, method='shannons', axis=0, average=True, subset=None):
+    """ Returns various statics on the importances for each masks
+    These funcions are intended to be used to summarize how consistent or correlated 
+    the importance matrices are within each region 
+
+    axis = 0 applies across regions
+    shape is len(features)
+    axis = 1 is equivalent to applying to within regions
+
+    average: average results within axis of interest?
+    subset: Only do for a subset of the data
+    """
+
+    if subset is None:
+        subset = range(0, clf.mask_num)
+
+    results = []
+
+    fi = clf.feature_importances[subset][:, subset]
+
+    for i in subset:
+        region_data = fi[subset.index(i)]
+
+        if method == 'var':
+            results.append(np.apply_along_axis(np.var, axis, region_data))
+
+        elif method == 'shannons':
+            results.append(
+                np.apply_along_axis(shannons, axis, region_data))
+
+    results = np.array(results)
+
+    if axis == 1:
+        results = np.ma.masked_array(results)
+        i, j = np.meshgrid(*map(np.arange, results.shape), indexing='ij')
+        results.mask = (i == j)
+
+    if average:
+        return results.mean(axis=1)
+    else:
+        return results
             
-    def get_mean_region_importances(self, subset=None):
+def get_mean_region_importances(clf, subset=None):
 
-        if subset is None:
-            subset = range(0, self.mask_num)
+    if subset is None:
+        subset = range(0, clf.mask_num)
 
-        fi = self.feature_importances[subset][:, subset]
+    fi = clf.feature_importances[subset][:, subset]
 
-        results = np.array(fi.mean(axis=2).mean(axis=0))
+    results = np.array(fi.mean(axis=2).mean(axis=0))
 
-        return results
+    return results
 
-    def accuracy_stats(self, method='shannons', subset=None):
+def accuracy_stats(clf, method='shannons', subset=None):
 
-        if subset is None:
-            subset = range(0, self.mask_num)
+    if subset is None:
+        subset = range(0, clf.mask_num)
 
-        fs = self.final_score[subset][:, subset]
+    fs = clf.final_score[subset][:, subset]
 
-        results = []
-        for row in subset:
-            if method == 'shannons':
-                results.append(shannons(fs[subset.index(row)]))
-            elif method == 'var':
-                results.append(fs[subset.index(row)].var())
+    results = []
+    for row in subset:
+        if method == 'shannons':
+            results.append(shannons(fs[subset.index(row)]))
+        elif method == 'var':
+            results.append(fs[subset.index(row)].var())
 
-        return results
+    return results
 
-    def minN_by_region(self):
-        """ Returns the average N for the smallest class in each comparison for each region """
-        results = []
-        for i in self.c_data:
-            r = []
-            for j in i:
-                if j is not None:
-                    r.append(np.bincount(j[1])[np.bincount(j[1]) != 0].min())
+def minN_by_region(clf):
+    """ Returns the average N for the smallest class in each comparison for each region """
+    results = []
+    for i in clf.c_data:
+        r = []
+        for j in i:
+            if j is not None:
+                r.append(np.bincount(j[1])[np.bincount(j[1]) != 0].min())
 
-            results.append(np.array(r).mean())
-        return results
+        results.append(np.array(r).mean())
+    return results
 
-    def region_heatmap(self, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, compare=False, each_region=True):
-        """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
-        as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
-        z-scored. You can also specify a threshold.
+def region_heatmap(clf, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, compare=False, each_region=True):
+    """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
+    as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
+    z-scored. You can also specify a threshold.
 
-        Args:
-            basename: string, base directory and file name
-            zscore_regions: boolean, should heatmap be z-scored based within regions
-            zscore_regions: boolean, should heatmap be z-scored based within features
-            thresh: value to threshold heatmap. Only values above this value are kept
-            subset: what regions should be plotted? default is all
-            each_region: make a heat map for every single subregion
+    Args:
+        basename: string, base directory and file name
+        zscore_regions: boolean, should heatmap be z-scored based within regions
+        zscore_regions: boolean, should heatmap be z-scored based within features
+        thresh: value to threshold heatmap. Only values above this value are kept
+        subset: what regions should be plotted? default is all
+        each_region: make a heat map for every single subregion
 
-        Outputs:
-            Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
-            will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
-        """
+    Outputs:
+        Outputs a .png file for the overall heatmap and for each region. If z-scored on thresholded,
+        will denote in file name using z0 (regions), z1 (features), and/or t followed by threshold.
+    """
 
-        from plotting import heat_map
+    from plotting import heat_map
 
-        if subset is None:
-            subset = range(0, self.mask_num)
+    if subset is None:
+        subset = range(0, clf.mask_num)
 
-        if compare is False:
-            overall_fi = self.feature_importances[subset][:, subset]
-        else:
-            overall_fi = self.feature_importances[:, subset]
+    if compare is True:
+        overall_fi = clf.feature_importances[subset][:, subset]
+    else:
+        overall_fi = clf.feature_importances[:, subset]
 
-        if np.array(subset).max() > self.mask_num:
-            print "Warning: you entered an incorrect mask index!"
+    if np.array(subset).max() > clf.mask_num:
+        print "Warning: you entered an incorrect mask index!"
 
-        fi = overall_fi.mean(axis=0).T
+    fi = overall_fi.mean(axis=0).T
 
-        z0 = ""
-        z1 = ""
-        t = ""
+    z0 = ""
+    z1 = ""
+    t = ""
 
-        if zscore_regions:
-            fi = np.apply_along_axis(stats.zscore, 0, fi)
-            z0 = "z0_"
-        if zscore_features:
-            fi = np.apply_along_axis(stats.zscore, 1, fi)
-            z1 = "z1_"
+    if zscore_regions:
+        fi = np.apply_along_axis(stats.zscore, 0, fi)
+        z0 = "z0_"
+    if zscore_features:
+        fi = np.apply_along_axis(stats.zscore, 1, fi)
+        z1 = "z1_"
 
-        if thresh is not None:
-            fi = np.ma.masked_array(fi)
-            fi.mask = fi < thresh
-            t = "zt" + str(thresh) + "_"
+    if thresh is not None:
+        fi = np.ma.masked_array(fi)
+        fi.mask = fi < thresh
+        t = "zt" + str(thresh) + "_"
 
-        if basename is None:
-            file_name = None
-        else:
-            file_name = basename + "imps_hm_" + z0 + z1 + t + "overall.png"
+    if basename is None:
+        file_name = None
+    else:
+        file_name = basename + "imps_hm_" + z0 + z1 + t + "overall.png"
 
-        heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
+    heat_map(fi, np.array(subset) + 1, clf.feature_names, file_name)
 
-        if each_region:
-            for i in subset:
+    if each_region:
+        for i in subset:
 
-                fi = overall_fi[subset.index(i)].T
+            fi = overall_fi[subset.index(i)].T
 
-                if zscore_regions:
-                    fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
-                if zscore_features:
-                    fi = stats.zscore(fi, axis=1)
+            if zscore_regions:
+                fi = np.ma.masked_invalid(stats.zscore(fi, axis=0))
+            if zscore_features:
+                fi = stats.zscore(fi, axis=1)
 
-                if thresh is not None:
-                    fi.mask = fi < thresh
+            if thresh is not None:
+                fi.mask = fi < thresh
 
-                if basename is None:
-                    file_name = None
-                else:
-                    file_name = basename + "imps_hm_" + \
-                        z0 + z1 + t + str(i) + ".png"
+            if basename is None:
+                file_name = None
+            else:
+                file_name = basename + "imps_hm_" + \
+                    z0 + z1 + t + str(i) + ".png"
 
-                heat_map(fi, np.array(subset) + 1, self.feature_names, file_name)
+            heat_map(fi, np.array(subset) + 1, clf.feature_names, file_name)
 
-    def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
-        if not keep_dataset:
-            self.dataset = []
-        if not keep_cdata:
-            self.c_data = []
-
-        if not keep_clfs:
-            self.fit_clfs = []
-        import cPickle
-        cPickle.dump(self, open(filename, 'wb'), -1)
-
-    @classmethod
-    def load(cls, filename):
-        """ Load a pickled Dataset instance from file. """
-        import cPickle
-        return cPickle.load(open(filename, 'rb'))
