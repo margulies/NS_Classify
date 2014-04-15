@@ -20,7 +20,7 @@ from sklearn.linear_model import RidgeClassifierCV
 # from sklearn.linear_model import LassoCV
 
 
-from base.multipleclassifier import MaskClassifier
+from base.classifiers.pairwise import PairwiseClassifier
 from base.tools import Logger
 from base.pipelines import pipeline
 
@@ -92,19 +92,19 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
     i = 0.1
 
     # pipeline(
-    # 	MaskClassifier(dataset, masklist,
+    # 	PairwiseClassifier(dataset, masklist,
     # 		cv='4-Fold', thresh=i),
     # 	name + "_GB_DM_f1_" + dataset_name + "_t_" + str(i), 
     # 	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
 
     pipeline(
-    	MaskClassifier(dataset, masklist,
+    	PairwiseClassifier(dataset, masklist,
     		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
     	name + "_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
     	features=features, processes=processes, post = False, dummy = 'most_frequent')
 
     # pipeline(
-    # 	MaskClassifier(dataset, masklist,
+    # 	PairwiseClassifier(dataset, masklist,
     # 		cv='4-Fold', thresh=i, classifier=LassoCV(max_iter=10000)),
     # 	name + "_LassoCV_DM_" + dataset_name + "_t_" + str(i), 
     # 	features=features, processes=processes, class_weight=None, post = False, scoring = 'accuracy', dummy = 'most_frequent')

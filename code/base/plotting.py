@@ -61,6 +61,12 @@ def heat_map(data, x_labels, y_labels, file_name=None):
         fig.savefig(file_name)
 
 
+def save_region_importance_plots(clf, basename, thresh=20):
+    for i in range(1, clf.mask_num):
+        clf.plot_importances(
+            i - 1, file_name=basename + "_imps_" + str(i) + ".png", thresh=thresh)
+        clf.plot_importances(
+            None, file_name=basename + "_imps_overall.png", thresh=thresh)
 
 
 # def plot_min_max_fi(clf):

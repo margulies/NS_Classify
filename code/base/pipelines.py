@@ -3,12 +3,12 @@
 
 import os
 from plotting import heat_map
-from multipleclassifier import MaskClassifier
-import multipleclassifier as mc
+from classifiers.pairwise import PairwiseClassifier
+import classifiers.pairwise as mc
 
 
 def post_processing(clf, basename):
-	"""Given a MaskClassifier object and a basename, perform post processing"""
+	"""Given a PairwiseClassifier object and a basename, perform post processing"""
 
 
     # Average classification accuracy brain map
@@ -106,7 +106,7 @@ def load_process(basename):
 	""" Load and process classifier """
 	basename = basename + "/"
 	try:
-		clf = MaskClassifier.load(basename + "classifier.pkl")
+		clf = PairwiseClassifier.load(basename + "classifier.pkl")
 	except IOError:
 		raise Exception("No pickled classifer in this fodler")
 

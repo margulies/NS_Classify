@@ -2,31 +2,23 @@
 # -*- coding: utf-8 -*-
 
 from neurosynth.analysis import classify
-import os
-import itertools
 import numpy as np
 from nipype.interfaces import fsl
-from sklearn.ensemble import GradientBoostingClassifier
-
-from sklearn.feature_selection import RFE
-
-from sklearn.dummy import DummyClassifier
-
 from scipy import stats
-from sklearn.preprocessing import binarize
 
 from multiprocessing import Pool
-
-import tools
-
-from statistics import shannons
-
-from scipy import sparse
-
 from tempfile import mkdtemp
 import os.path as path
-
 import re
+import itertools
+
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.feature_selection import RFE
+from sklearn.dummy import DummyClassifier
+from sklearn.preprocessing import binarize
+
+from statistics import shannons
+import tools
 
 
 def get_ns_for_pairs(a_b_c):
@@ -52,8 +44,7 @@ def classify_parallel(args):
     return output
 
 
-
-class MaskClassifier:
+class PairwiseClassifier:
 
     def __init__(self, dataset, mask_img, classifier=GradientBoostingClassifier(), 
         thresh=0.08, param_grid=None, cv=None, memsave=False):
@@ -415,12 +406,6 @@ def get_best_features(clf, n, ranking=True):
 
     return clf.get_importances(None, absolute=True, ranking=ranking)[-n:]
 
-def save_region_importance_plots(clf, basename, thresh=20):
-    for i in range(1, clf.mask_num):
-        clf.plot_importances(
-            i - 1, file_name=basename + "_imps_" + str(i) + ".png", thresh=thresh)
-        clf.plot_importances(
-            None, file_name=basename + "_imps_overall.png", thresh=thresh)
 
 def importance_stats(clf, method='shannons', axis=0, average=True, subset=None):
     """ Returns various statics on the importances for each masks
