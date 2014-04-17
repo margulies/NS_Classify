@@ -81,9 +81,6 @@ def mask_diagonal(masked_array):
 
     return masked_array
 
-def get_index_path(pair):
-    """ returns index, pair path """
-    return (pair[0][1], pair[1][1]), [pair[0][0], pair[1][0]]
 
 def invert_y(y):
     import numpy as np

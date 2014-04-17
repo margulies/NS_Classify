@@ -77,9 +77,9 @@ now = datetime.datetime.now()
 # dataset_topics_40_thresh.feature_table.data = sparse.csr_matrix(x)
 
 
-dataset_abstracts = Dataset.load("../data/datasets/dataset_abs_words_pandas.pkl")
-abs_features = dataset_abstracts.get_feature_names()
-filtered_abs_features = list(set(abs_features) & set(old_features))
+# dataset_abstracts = Dataset.load("../data/datasets/dataset_abs_words_pandas.pkl")
+# abs_features = dataset_abstracts.get_feature_names()
+# filtered_abs_features = list(set(abs_features) & set(old_features))
 
 dataset_abstracts_topics = Dataset.load("../data/datasets/dataset_abs_topics_pandas.pkl")
 
@@ -113,7 +113,7 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 try:
-	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
+	complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_11", "../masks/ns_kmeans_all/kmeans_all_11.nii.gz", processes = 8, features=None)
 	# complete_analysis(dataset_abstracts, "abstract_words", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
 	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
 	# complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
