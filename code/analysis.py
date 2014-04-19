@@ -20,7 +20,9 @@ from sklearn.linear_model import RidgeClassifierCV
 # from sklearn.linear_model import LassoCV
 
 
-from base.classifiers.pairwise import PairwiseClassifier
+from base.classifiers import PairwiseClassifier
+from base.classifiers import OnevsallClassifier
+
 from base.tools import Logger
 from base.pipelines import pipeline
 
@@ -98,9 +100,9 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
     # 	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
 
     pipeline(
-    	PairwiseClassifier(dataset, masklist,
+    	OnevsallClassifier(dataset, masklist,
     		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
-    	name + "_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
+    	name + "OvA_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
     	features=features, processes=processes, post = False, dummy = 'most_frequent')
 
     # pipeline(
