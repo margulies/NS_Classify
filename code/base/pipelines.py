@@ -3,7 +3,7 @@
 
 import os
 from plotting import heat_map
-from classifiers.pairwise import PairwiseClassifier
+from classifiers import PairwiseClassifier
 import classifiers.pairwise as mc
 
 

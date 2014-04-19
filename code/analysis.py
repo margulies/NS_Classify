@@ -28,7 +28,7 @@ from base.pipelines import pipeline
 
 from neurosynth.base.dataset import Dataset
 
-# import numpy as np
+import numpy as np
 
 now = datetime.datetime.now()
 
@@ -91,7 +91,7 @@ dataset_abstracts_topics = Dataset.load("../data/datasets/dataset_abs_topics_pan
 
 def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, features=None):
 
-    i = 0.1
+    for i in np.arange(0.005,0.05,0.01):
 
     # pipeline(
     # 	PairwiseClassifier(dataset, masklist,
@@ -99,11 +99,11 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
     # 	name + "_GB_DM_f1_" + dataset_name + "_t_" + str(i), 
     # 	features=features, processes=processes, post = False, scoring = 'f1', dummy = 'most_frequent')
 
-    pipeline(
-    	OnevsallClassifier(dataset, masklist,
-    		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
-    	name + "OvA_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
-    	features=features, processes=processes, post = False, dummy = 'most_frequent')
+	    pipeline(
+	    	OnevsallClassifier(dataset, masklist,
+	    		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
+	    	name + "OvA_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
+	    	features=features, processes=processes, post = False, dummy = 'most_frequent')
 
     # pipeline(
     # 	PairwiseClassifier(dataset, masklist,
