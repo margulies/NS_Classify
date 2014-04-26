@@ -15,3 +15,8 @@ def shannons(x):
         x = x * np.log(x)
         x = np.ma.masked_array(x, np.isnan(x))
         return ((x).sum()) * -1
+
+def get_roc(x, y):
+	from sklearn.metrics import roc_curve, auc
+	fpr, tpr, thresholds = roc_curve(x, y)
+	return auc(fpr, tpr)

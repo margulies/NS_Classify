@@ -68,6 +68,25 @@ def save_region_importance_plots(clf, basename, thresh=20):
         clf.plot_importances(
             None, file_name=basename + "_imps_overall.png", thresh=thresh)
 
+def plot_roc(y_test, y_pred):
+    import pylab as pl
+    from sklearn.metrics import roc_curve, auc
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+    roc_auc = auc(fpr, tpr)
+    print("Area under the ROC curve : %f" % roc_auc)
+
+    # Plot ROC curve
+    pl.clf()
+    pl.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % roc_auc)
+    pl.plot([0, 1], [0, 1], 'k--')
+    pl.xlim([0.0, 1.0])
+    pl.ylim([0.0, 1.0])
+    pl.xlabel('False Positive Rate')
+    pl.ylabel('True Positive Rate')
+    pl.title('Receiver operating characteristic example')
+    pl.legend(loc="lower right")
+    pl.show()
+
 
 # def plot_min_max_fi(clf):
 #     density_plot(

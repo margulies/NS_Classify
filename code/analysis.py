@@ -83,7 +83,7 @@ now = datetime.datetime.now()
 # abs_features = dataset_abstracts.get_feature_names()
 # filtered_abs_features = list(set(abs_features) & set(old_features))
 
-dataset_abstracts_topics = Dataset.load("../data/datasets/dataset_abs_topics_pandas.pkl")
+d_abs_topics_filt = Dataset.load('../data/datasets/abs_topics_filt.pkl')
 
 
 
@@ -91,7 +91,7 @@ dataset_abstracts_topics = Dataset.load("../data/datasets/dataset_abs_topics_pan
 
 def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, features=None):
 
-    for i in np.arange(0.005,0.05,0.01):
+    for i in np.arange(0.005,0.05,0.02):
 
     # pipeline(
     # 	PairwiseClassifier(dataset, masklist,
@@ -101,9 +101,16 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 
 	    pipeline(
 	    	OnevsallClassifier(dataset, masklist,
-	    		cv='4-Fold', thresh=i, memsave = True, classifier=RidgeClassifier()),
-	    	name + "OvA_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
-	    	features=features, processes=processes, post = False, dummy = 'most_frequent')
+	    		cv='4-Fold', thresh=i, classifier=RidgeClassifier()),
+	    	name + "_OvA_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
+	    	features=features, processes=processes, post = False, scoring = 'f1')
+
+	    pipeline(
+	    	PairwiseClassifier(dataset, masklist,
+	    		cv='4-Fold', thresh=i, classifier=RidgeClassifier()),
+	    	name + "_Pairwise_RidgeClassifier_DM_" + dataset_name + "_t_" + str(i), 
+	    	features=features, processes=processes, post = False, scoring = 'f1')
+
 
     # pipeline(
     # 	PairwiseClassifier(dataset, masklist,
@@ -115,10 +122,9 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
 try:
-	complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_11", "../masks/ns_kmeans_all/kmeans_all_11.nii.gz", processes = 8, features=None)
-	# complete_analysis(dataset_abstracts, "abstract_words", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
-	# complete_analysis(dataset_abstracts_topics, "abstract_topics", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
-	# complete_analysis(dataset_abstracts, "abstract_words", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_11", "../masks/ns_kmeans_all/kmeans_all_11.nii.gz", processes = 8, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = 8, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = 8, features=None)
 
 finally:
     sys.stdout.end()

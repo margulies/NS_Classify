@@ -1,14 +1,0 @@
-Yeo7
-Words
-Classifier: GradientBoostingClassifier(init=None, learning_rate=0.1, loss=deviance,
-              max_depth=3, max_features=None, min_samples_leaf=1,
-              min_samples_split=2, n_estimators=100, random_state=None,
-              subsample=1.0, verbose=0)
-[] 0%[] 4%[] 9%[#] 14%[#] 19%[##] 23%[##] 28%[###] 33%[###] 38%  [####] 42%[####] 47%[#####] 52%[#####] 57%[######] 61%[######] 66%[#######] 71%[#######] 76%[########] 80%[########] 85%[#########] 90%[#########] 95%[##########] 100%
-Mask averages
-[0.36261364620729508, 0.33913797879956348, 0.2707860020066129, 0.29480605249027897, 0.11143510707808818, 0.34102794621214766, 0.27999155845626605]
-Making average map...
-Made../results/Yeo7_GB_words_AvgClass.nii.gz
-Average Shannon's Diversity
-
-[0;34mIn [[1;34m8[0;34m]: [0m
