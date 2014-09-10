@@ -20,14 +20,14 @@ def density_plot(data, file_name=None, covariance_factor=.2):
         plt.savefig(file_name)
 
 
-def heat_map(data, x_labels, y_labels, file_name=None):
+def heat_map(data, x_labels, y_labels, size = (11, 11), file_name=None, lines=None, lines_off = 0):
 
     fig, ax = plt.subplots()
     heatmap = ax.pcolor(data, cmap=plt.cm.YlOrRd, alpha=0.8)
 
     fig = plt.gcf()
 
-    fig.set_size_inches(11, 11)
+    fig.set_size_inches(size)
 
     # turn off the frame
     ax.set_frame_on(False)
@@ -47,6 +47,15 @@ def heat_map(data, x_labels, y_labels, file_name=None):
 
     # Turn off all the ticks
     ax = plt.gca()
+
+    if lines is not None:
+        xl, xh=ax.get_xlim()
+        yl, yh=ax.get_ylim()
+        if lines_off is not None:
+            yl -= lines_off
+            xh -= lines_off
+        ax.hlines(lines, xl, xh, color='w', linewidth = 1.5)
+        ax.vlines(lines, yl, yh, color='w', linewidth = 1.5)
 
     for t in ax.xaxis.get_major_ticks():
         t.tick1On = False

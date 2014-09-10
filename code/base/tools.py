@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-
+import numpy as np
 
 class Logger():
 
@@ -115,4 +115,154 @@ def get_mask_ix_dict(clf):
 
     return dict(zip(mask_nums, indexes))
 
+def region_vox_baserates(dataset, regions, threshold=False, remove_zero=True):
+        """ Returns the baserate of every voxels within a set of regions
 
+        Takes a Dataset and a Nifti image that defines distinct regions, and
+        returns a list of matrices of voxels for each regions, where the value at each voxel is
+        the mean activation. Each distinct ROI must have a
+        unique value in the image; non-contiguous voxels with the same value will
+        be assigned to the same ROI.
+
+        Args:
+            dataset: Either a Dataset instance from which image data are extracted, or a 
+                Numpy array containing image data to use. If the latter, the array contains 
+                voxels in rows and features/studies in columns. The number of voxels must 
+                be equal to the length of the vectorized image mask in the 
+            regions: An image defining the boundaries of the regions to use. Can be:
+                1) A string name of the NIFTI or Analyze-format image
+                2) A NiBabel SpatialImage
+                3) A 1D numpy array of the same length as the mask vector in the Dataset's
+                     current Masker.
+            remove_zero: An optional boolean; when True, assume that voxels with value
+            of 0 should not be considered as a separate ROI, and will be ignored.
+
+        Returns:
+            A list of 1D numpy array with voxels' base rates
+        """
+
+        import numpy as np
+        import pandas as pd
+        from scipy.sparse import vstack
+        import itertools
+
+        regions = dataset.masker.mask(regions)
+        
+        if threshold:
+            dataset = dataset.get_image_data(dense=True)
+        else:
+            dataset = dataset.get_image_data(dense=False)
+
+        n_regions = np.unique(regions).size
+
+        start = 0
+        if remove_zero:
+                start = 1
+
+        results = []
+        labels = []
+        for i in range(start, n_regions + 1):
+                data = dataset[np.where(regions == i)[0]]
+
+                if threshold:
+                    data = data > threshold
+                base_rates = data.mean(axis=1)
+                results.append(base_rates)
+
+                labels.append(base_rates.shape[0] * [i])
+
+        results = vstack(results)
+        labels = list(itertools.chain(*labels))
+
+        results = pd.DataFrame([pd.Series(labels, dtype=object), pd.Series(results.toarray().flat)]).T
+        results.columns = ['region', 'base_rate']
+
+        return results
+
+
+def region_n_vox(dataset, regions, remove_zero=True):
+    mask = dataset.masker.mask(regions)
+
+    results = np.bincount([int(num) for num in mask])
+
+    if remove_zero:
+        results = results[1:]
+
+    return results
+
+def copy_along_diagonal(array, data='upper_right', inverse = False):
+    grid = np.meshgrid(*map(np.arange, array.shape), indexing='ij')
+
+    g1, g2 = grid[0], grid[1]
+
+    new_array = array.copy()
+
+    if inverse:
+        array = array * -1
+
+    if data == 'upper_right':
+        new_array[g1 > g2] = np.rot90(np.fliplr(array))[g2 < g1]
+    else:
+        new_array[g1 < g2] = np.rot90(np.fliplr(array))[g2 > g1]
+
+    return new_array
+
+def make_mask_map_ipython(data, infile):
+    import tempfile
+    from nbpapaya import Brain
+
+    tmp_file = tempfile.mktemp(suffix=".nii")
+    make_mask_map(data, infile, tmp_file)
+
+    return Brain(tmp_file)
+
+def make_mask_map(data, infile, outfile):
+    from neurosynth.base.mask import Masker
+    from neurosynth.base import imageutils
+
+    # Load image with masker
+    masker = Masker(infile)
+    img = imageutils.load_imgs(infile, masker)
+
+    data = list(data)
+
+    for num, value in enumerate(data):
+        np.place(img, img == num + 1, [value])
+
+    img = img.astype('float32')
+
+    imageutils.save_img(img, outfile, masker)
+
+def make_mask_map_4d(data, infile, outfile):
+    """ Make mask map with 4d dimeions
+    data: values for levels in infile. Shape = [4th dimension, regions]
+    infile: input file to replace levels with values
+    outfile: output file name
+    """
+    from neurosynth.base.mask import Masker
+    from neurosynth.base import imageutils
+    from nibabel import nifti1
+
+    data = np.array(data)
+
+    # Load image with masker
+    masker = Masker(infile)
+    img = imageutils.load_imgs(infile, masker)
+
+    header = masker.get_header()
+
+    shape = header.get_data_shape()[0:3] + (data.shape[0],)
+    header.set_data_shape(shape)
+
+    result = []
+
+    for t_dim, t_val in enumerate(data):
+        result.append(img.copy())
+        for num, value in enumerate(t_val):
+            np.place(result[t_dim], img == num + 1, [value])
+
+    result = np.hstack(result)
+
+    header.set_data_dtype(result.dtype)  # Avoids loss of precision
+    img = nifti1.Nifti1Image(masker.unmask(result).squeeze(), None, header)
+    img.to_filename(outfile)
