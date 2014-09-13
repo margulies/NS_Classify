@@ -48,7 +48,7 @@ def post_processing(clf, basename):
 	mc.region_heatmap(clf, basename, zscore_features=True)
 	mc.region_heatmap(clf, basename, zscore_regions=True, zscore_features=True)
 
-def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = None, post = True, dummy = None):
+def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, processes=4, feat_select=None, class_weight = None, post = False, dummy = None):
 
     print("Classifier: " + str(clf.classifier))
 
@@ -73,29 +73,12 @@ def pipeline(clf, name, features=None, scoring='accuracy', X_threshold=None, pro
     clf.save(basename + "classifier.pkl", keep_cdata=True)
 
     print "_____________________"
-    print "Descriptive results:"
-    print "Overall accuracy: " + str(clf.final_score.mean())
-
-    if clf.dummy_score is not None:
-    	print "Classifier averages: " + str(clf.class_score.mean())
-    	print "Dummy averages: " + str(clf.dummy_score.mean())
-    	from scipy import stats
-    	print "Correlation between dummy and clf: " + str(stats.pearsonr(clf.class_score.flatten(), clf.dummy_score.flatten()))
-
-    print "Mask averages: " + str(mc.get_mask_averages(clf, precision=3))
-
+    print "Overall accuracy: " + str(clf.class_score.mean())
     print "_____________________"
     print
 
     with open(basename + "results.txt", 'w') as f:
-    	f.write("Overall accuracy: " + str(clf.final_score.mean()))
-    	f.write("Mask averages: " + str(mc.get_mask_averages(clf, precision=3)))
-
-    	if clf.dummy_score is not None:
-			f.write("Classifier averages: " + str(clf.class_score.mean()))
-			f.write("Dummy averages: " + str(clf.dummy_score.mean()))
-			from scipy import stats
-			f.write("Correlation between dummy and clf: " + str(stats.pearsonr(clf.class_score.flatten(), clf.dummy_score.flatten())))
+    	f.write("Overall accuracy: " + str(clf.class_score.mean()))
 
     if post:
 	    post_processing(clf, basename)

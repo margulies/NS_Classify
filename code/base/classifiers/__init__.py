@@ -31,6 +31,178 @@ def classify_parallel(args):
     # asses stability
     return output
 
+def regression_parallel(args):
+    from sklearn import cross_validation
+    from collections import Counter
+
+    (clf, scoring, filename), index = args
+
+    X, y_all = np.memmap(filename, dtype='object', mode='r',
+                     shape=2)
+
+    y = y_all[index]
+
+    try:
+        y = y.toarray()[0]
+    except:
+        pass
+
+    cv = cross_validation.StratifiedKFold(y, 4, indices=True)
+
+    scores = []
+    predictions = []
+    for train, test in cv:
+        X_train, X_test, y_train, y_test = X[
+            train], X[test], y[train], y[test]
+
+        # Train classifier
+        clf.fit(X_train, y_train)
+
+        # Test classifier
+        y_pred = clf.predict(X_test)
+
+        s = scoring(y_test, y_pred)
+
+        scores.append(s)
+        predictions.append((y_test, y_pred))
+
+    score = np.array(scores).mean()
+
+    clf.fit(X, y)
+
+    output = {'score': score, 'n': dict(Counter(y)), 'clf': clf, 'predictions': predictions, 'index': index}
+
+    # Remember to add vector to output that keeps track of seleted features to
+    # asses stability
+    return output
+
+class OnevsallContinuous():
+    def __init__(self, dataset, mask_img, classifier, cv=None, memsave=True, scale=None, *kwargs):
+
+        self.mask_img = mask_img
+        self.classifier = classifier
+        self.dataset = dataset
+        self.cv = cv
+        self.memsave = memsave
+        self.X = None
+        self.scale = scale
+
+    def load_data(self, features):
+        """ Loads ids and data for each individual mask """
+
+        print "Loading data from neurosynth..."
+
+        from neurosynth.analysis.reduce import average_within_regions
+
+        if self.mask_img is None:
+            self.y = self.dataset.get_image_data()
+        elif isinstance(self.mask_img, basestring):
+            if self.mask_img[-3:] == ".pkl":
+                import cPickle
+                self.y = cPickle.load(open(self.mask_img, 'rb'))
+            else:
+                # ADD FEATURE TO FILTER BY FEATURES
+                self.y = average_within_regions(
+                    self.dataset, self.mask_img)
+        else:
+            self. y = self.mask_img
+
+        self.mask_num =  self.y.shape[0]
+
+        from neurosynth.analysis.classify import regularize
+
+        X = self.dataset.get_feature_data(features=features)
+        self.X = regularize(X, method='scale')
+
+        self.comparisons = range(0, self.mask_num)
+
+        self.comp_dims = (self.mask_num, )
+
+    def initalize_containers(self, features):
+        """ Makes all the containers that will hold feature importances, etc """
+
+        # Move to an init_containers function
+        self.scores = tools.mask_diagonal(
+            np.ma.masked_array(np.zeros(self.comp_dims)))
+
+        if self.memsave is False:
+            self.fit_clfs = np.empty(self.comp_dims, object)
+
+        if features:
+            self.feature_names = features
+        else:
+            self.feature_names = self.dataset.get_feature_names()
+
+        self.n_features = len(self.feature_names)
+
+        self.predictions = np.empty(self.comp_dims, object)
+
+        # Make feature importance grid w/ masked diagonals
+        self.feature_importances = tools.mask_diagonal(np.ma.masked_array(np.zeros(self.comp_dims + (self.n_features, ))))
+
+        filename = path.join(mkdtemp(), 'c_data.dat')
+        self.data = np.memmap(filename, dtype='object',
+                                mode='w+', shape=(2))
+
+
+    def classify(self, features=None, scoring='accuracy', processes=1, **kwargs):
+        if self.X is None:
+            self.load_data(features)
+            self.initalize_containers(features)
+
+        print "Classifying..."
+        pb = tools.ProgressBar(len(list(self.comparisons)), start=True)
+
+        if processes > 1:
+            from multiprocessing import Pool
+            pool = Pool(processes=processes)
+        else:
+            pool = itertools
+
+        try:
+            self.data[0] = self.X
+            self.data[1] = self.y
+            filename = self.data.filename
+
+            for output in pool.imap(
+                regression_parallel, itertools.izip(
+                    itertools.repeat(
+                        (self.classifier, scoring, filename)),
+                    self.comparisons)):
+
+                index = output['index']
+                self.scores[index] = output['score']
+                if self.memsave is False:
+                    self.fit_clfs[index] = output['clf']
+
+                self.feature_importances[index] = output['clf'].coef_
+
+                self.predictions[index] = output['predictions']
+
+                pb.next()
+        finally:
+            if processes > 1:
+                pool.close()
+                pool.join()
+
+        self.class_score = self.scores
+
+    def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
+        if not keep_dataset:
+            self.dataset = []
+        if not keep_cdata:
+            self.c_data = []
+
+        if not keep_clfs:
+            self.fit_clfs = []
+        import cPickle
+        cPickle.dump(self, open(filename, 'wb'), -1)
+
+    @classmethod
+    def load(cls, filename):
+        """ Load a pickled Dataset instance from file. """
+        import cPickle
+        return cPickle.load(open(filename, 'rb'))
 
 class GenericClassifier:
 
@@ -249,7 +421,6 @@ class GenericClassifier:
 
         return imps
 
-
 class OnevsallClassifier(GenericClassifier):
 
     def load_data(self, features, X_threshold):
@@ -305,6 +476,7 @@ class OnevsallClassifier(GenericClassifier):
         self.comparisons = range(0, self.mask_num)
 
         self.comp_dims = (self.mask_num, )
+
 
 
 class PairwiseClassifier(GenericClassifier):

@@ -12,8 +12,8 @@ import csv
 # from sklearn.linear_model import BayesianRidge
 # from sklearn.linear_model import ARDRegression
 
-from sklearn.linear_model import RidgeClassifier
-# from sklearn.linear_model import Ridge
+# from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import Ridge
 
 # from sklearn.linear_model import RidgeClassifierCV
 # from sklearn.linear_model import ElasticNet
@@ -27,6 +27,8 @@ from sklearn.linear_model import RidgeClassifier
 
 from base.classifiers import PairwiseClassifier
 from base.classifiers import OnevsallClassifier
+from base.classifiers import OnevsallContinuous
+
 
 from base.tools import Logger
 from base.pipelines import pipeline
@@ -94,21 +96,31 @@ d_abs_topics_filt = Dataset.load('../data/datasets/abs_topics_filt_july.pkl')
 # Analyses
 from sklearn.metrics import roc_auc_score
 
+from sklearn.metrics import r2_score
+
+from sklearn.linear_model import LinearRegression
+
+
 def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, features=None):
 
-    for i in [10]:
+    # for i in [10]:
 
-		pipeline(
-			OnevsallClassifier(dataset, masklist,
-				thresh=i, thresh_low = 0, memsave=False, classifier=RidgeClassifier()),
-			name + "_OvA_RidgeClassifier_DM_hard0_roc_" + dataset_name + "_tn_" + str(i), 
-			features=features, processes=processes, post = False, scoring = roc_auc_score, dummy='most_frequent')
+		# pipeline(
+		# 	OnevsallClassifier(dataset, masklist,
+		# 		thresh=i, thresh_low = 0, memsave=False, classifier=RidgeClassifier()),
+		# 	name + "_OvA_RidgeClassifier_DM_hard0_roc_" + dataset_name + "_tn_" + str(i), 
+		# 	features=features, processes=processes, post = False, scoring = roc_auc_score, dummy='most_frequent')
 
 		# pipeline(
 	 #    	PairwiseClassifier(dataset, masklist,
 	 #    		cv='4-Fold', thresh=i, memsave=True, remove_overlap = True, classifier=RidgeClassifier()),
 	 #    	name + "_Pairwise_RidgeClassifier_roc_DM_" + dataset_name + "_tn_" + str(i), 
 	 #    	features=features, processes=processes, post = False, scoring = roc_auc_score, dummy='most_frequent')
+
+	pipeline(
+		OnevsallContinuous(dataset, masklist, classifier=Ridge(), memsave=True),
+		name + "_Continous_Ridge_" + dataset_name, 
+		features=features, processes=processes, scoring = r2_score)
 
 		# pipeline(
 	 #    	PairwiseClassifier(dataset, masklist,
@@ -120,28 +132,23 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 # Begin logging
 sys.stdout = Logger("../logs/" + now.strftime("%Y-%m-%d_%H_%M_%S") + ".txt")
 
-pr = 7
+pr = 8;
 
 try:
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_11", "../masks/ns_kmeans_all/kmeans_all_11.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_20", "../masks/ns_kmeans_all/kmeans_all_20.nii.gz", processes = pr, features=None)
-	# # complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = pr, features=None)
+	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_60", "../masks/ns_kmeans_all/kmeans_all_60.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_20_0135", "../masks/ns_kmeans_all/k_means_20_0135.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_30_0135", "../masks/ns_kmeans_all/k_means_30_0135.nii.gz", processes = pr, features=None)
-
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_40_0135", "../masks/ns_kmeans_all/k_means_40_0135.nii.gz", processes = pr, features=None)
-
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ns_50_0135", "../masks/ns_kmeans_all/k_means_50_0135.nii.gz", processes = pr, features=None)
-
-
-
-	# # complete_analysis(d_abs_topics_filt, "abs_topics_filt", "wash_u_150v", "../masks/wash_u/parcels_continuous_150_filt.nii", processes = pr, features=None)
+	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "wash_u_150v", "../masks/wash_u/parcels_continuous_150_filt.nii", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_10", "../masks/ward/10.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_20", "../masks/ward/20.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_30", "../masks/ward/30.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_40", "../masks/ward/40.nii.gz", processes = pr, features=None)
-	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "aal_v4_300", "../masks/Andy/aal_MNI_V4.nii", processes = pr, features=None)
-	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_60", "../masks/ward/60.nii.gz", processes = pr, features=None)
+	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_50", "../masks/ward/40.nii.gz", processes = pr, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "all_voxels", None, processes = pr, features=None)
 
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_20", "../masks/craddock/scorr_05_2level/20/merged.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_30", "../masks/craddock/scorr_05_2level/30/merged.nii.gz", processes = pr, features=None)
