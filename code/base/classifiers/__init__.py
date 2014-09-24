@@ -35,12 +35,26 @@ def regression_parallel(args):
     from sklearn import cross_validation
     from collections import Counter
 
-    (clf, scoring, filename), index = args
+    (clf, scoring, filename, remove_zero), index = args
 
     X, y_all = np.memmap(filename, dtype='object', mode='r',
                      shape=2)
 
-    y = y_all[index]
+    if isinstance(index, tuple):
+        if remove_zero:
+            y0 = y_all[index[0]]
+            y1 = y_all[index[1]]
+
+            filt = (y0 == 0) & (y1 == 0) == False
+            y = y_all[index[0]][filt] - y_all[index[1]][filt]
+
+            X = X[filt]
+
+        else:
+            y = y_all[index[0]] - y_all[index[1]]
+    else:
+        y = y_all[index]
+
 
     try:
         y = y.toarray()[0]
@@ -76,8 +90,10 @@ def regression_parallel(args):
     # asses stability
     return output
 
+
+
 class OnevsallContinuous():
-    def __init__(self, dataset, mask_img, classifier, cv=None, memsave=True, scale=None, *kwargs):
+    def __init__(self, dataset, mask_img, classifier, cv=None, memsave=True, remove_zero=False, *kwargs):
 
         self.mask_img = mask_img
         self.classifier = classifier
@@ -85,7 +101,7 @@ class OnevsallContinuous():
         self.cv = cv
         self.memsave = memsave
         self.X = None
-        self.scale = scale
+        self.remove_zero = remove_zero
 
     def load_data(self, features):
         """ Loads ids and data for each individual mask """
@@ -114,8 +130,10 @@ class OnevsallContinuous():
         X = self.dataset.get_feature_data(features=features)
         self.X = regularize(X, method='scale')
 
-        self.comparisons = range(0, self.mask_num)
+        self.set_dims()
 
+    def set_dims(self):
+        self.comparisons = range(0, self.mask_num)
         self.comp_dims = (self.mask_num, )
 
     def initalize_containers(self, features):
@@ -140,7 +158,7 @@ class OnevsallContinuous():
         # Make feature importance grid w/ masked diagonals
         self.feature_importances = tools.mask_diagonal(np.ma.masked_array(np.zeros(self.comp_dims + (self.n_features, ))))
 
-        filename = path.join(mkdtemp(), 'c_data.dat')
+        filename = path.join(mkdtemp(), 'data.dat')
         self.data = np.memmap(filename, dtype='object',
                                 mode='w+', shape=(2))
 
@@ -167,7 +185,7 @@ class OnevsallContinuous():
             for output in pool.imap(
                 regression_parallel, itertools.izip(
                     itertools.repeat(
-                        (self.classifier, scoring, filename)),
+                        (self.classifier, scoring, filename, self.remove_zero)),
                     self.comparisons)):
 
                 index = output['index']
@@ -187,11 +205,14 @@ class OnevsallContinuous():
 
         self.class_score = self.scores
 
+        if len(self.comp_dims) > 1:
+            self.copy_diagonal()
+
     def save(self, filename, keep_dataset=False, keep_cdata=False, keep_clfs=False):
         if not keep_dataset:
             self.dataset = []
         if not keep_cdata:
-            self.c_data = []
+            self.data = []
 
         if not keep_clfs:
             self.fit_clfs = []
@@ -203,6 +224,17 @@ class OnevsallContinuous():
         """ Load a pickled Dataset instance from file. """
         import cPickle
         return cPickle.load(open(filename, 'rb'))
+
+class PairwiseContinuous(OnevsallContinuous):
+    def set_dims(self):
+        self.comparisons = list(
+            itertools.combinations(range(0, self.mask_num), 2))
+
+        self.comp_dims = (self.mask_num, self.mask_num)
+
+    def copy_diagonal(self):
+        self.scores = tools.copy_along_diagonal(self.scores)
+        self.feature_importances = tools.copy_along_diagonal(self.feature_importances, inverse=True)
 
 class GenericClassifier:
 
@@ -477,8 +509,6 @@ class OnevsallClassifier(GenericClassifier):
 
         self.comp_dims = (self.mask_num, )
 
-
-
 class PairwiseClassifier(GenericClassifier):
 
     def load_data(self, features, X_threshold):
@@ -530,7 +560,6 @@ class PairwiseClassifier(GenericClassifier):
             self.ids_by_masks = []
 
         self.comp_dims = (self.mask_num, self.mask_num)
-
 
 def rescore(clf, scoring_function, dummy=None):
     """" Rescores clf given a scoring function

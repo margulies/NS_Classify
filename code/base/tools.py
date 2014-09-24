@@ -161,7 +161,7 @@ def region_vox_baserates(dataset, regions, threshold=False, remove_zero=True):
 
         results = []
         labels = []
-        for i in range(start, n_regions + 1):
+        for i in range(int(regions.min()), int(regions.max())):
                 data = dataset[np.where(regions == i)[0]]
 
                 if threshold:
