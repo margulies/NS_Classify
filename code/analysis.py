@@ -14,7 +14,6 @@ import csv
 
 # from sklearn.linear_model import RidgeClassifier
 from sklearn.linear_model import Ridge
-
 # from sklearn.linear_model import RidgeClassifierCV
 # from sklearn.linear_model import ElasticNet
 # from sklearn.linear_model import ElasticNet
@@ -151,6 +150,7 @@ try:
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "aal", "../masks/Andy/aal_MNI_V4.nii", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_30", "../masks/craddock/scorr_05_2level/30/merged.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_40", "../masks/craddock/scorr_05_2level/40/merged.nii.gz", processes = pr, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_20", "../masks/craddock/scorr_05_2level/20/merged.nii.gz", processes = pr, features=None)
 	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_50", "../masks/craddock/scorr_05_2level/50/merged.nii.gz", processes = pr, features=None)
 
 
