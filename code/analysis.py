@@ -97,6 +97,8 @@ d_abs_topics_filt = Dataset.load('../data/datasets/abs_60topics_filt_jul.pkl')
 
 # Analyses
 from sklearn.metrics import r2_score
+from sklearn.metrics import explained_variance_score
+
 
 
 def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, features=None):
@@ -115,15 +117,15 @@ def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, feat
 	 #    	name + "_Pairwise_RidgeClassifier_roc_DM_" + dataset_name + "_tn_" + str(i), 
 	 #    	features=features, processes=processes, post = False, scoring = roc_auc_score, dummy='most_frequent')
 
-	# pipeline(
-	# 	OnevsallContinuous(dataset, masklist, classifier=Ridge(), memsave=True),
-	# 	name + "_Ridge_" + dataset_name, 
-	# 	features=features, processes=processes, scoring = r2_score)
-
 	pipeline(
-		PairwiseContinuous(dataset, masklist, classifier=Ridge(), memsave=True, remove_zero=True),
-		name + "_Pairwise_Ridge_rz_" + dataset_name, 
-		features=features, processes=processes, scoring = r2_score)
+		OnevsallContinuous(dataset, masklist, classifier=Ridge(), memsave=True),
+		name + "_Ridge_" + dataset_name, 
+		features=features, processes=processes, scoring = explained_variance_score)
+
+	# pipeline(
+	# 	PairwiseContinuous(dataset, masklist, classifier=Ridge(), memsave=True, remove_zero=True),
+	# 	name + "_Pairwise_Ridge_rz_" + dataset_name, 
+	# 	features=features, processes=processes, scoring = r2_score)
 
 		# pipeline(
 	 #    	PairwiseClassifier(dataset, masklist,
@@ -140,15 +142,16 @@ pr = 8;
 try:
 
 
-	for topics in [60]:
-		d_abs_topics_filt = Dataset.load('../data/datasets/abs_' +str(topics) + 'topics_filt_jul.pkl')
-		for regions in [30]:
-			complete_analysis(d_abs_topics_filt, "abs_topics" + str(topics) + "_filt", "ward_f" + str(regions), "../results/cluster_3mm_ward/ClusterImages/Cluster_k" + str(regions) + ".nii.gz", processes = pr, features=None)
+	# for topics in [60]:
+	# 	d_abs_topics_filt = Dataset.load('../data/datasets/abs_' +str(topics) + 'topics_filt_jul.pkl')
+	# 	for regions in [30]:
+	# 		complete_analysis(d_abs_topics_filt, "abs_topics" + str(topics) + "_filt", "ward_" + str(regions), "../results/cluster_3mm_ward_coact/ClusterImages/Cluster_k" + str(regions) + ".nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "all_voxels", None, processes = pr, features=None)
 
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "aal", "../masks/Andy/aal_MNI_V4.nii", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_30", "../masks/craddock/scorr_05_2level/30/merged.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_40", "../masks/craddock/scorr_05_2level/40/merged.nii.gz", processes = pr, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_50", "../masks/craddock/scorr_05_2level/50/merged.nii.gz", processes = pr, features=None)
 
 
 finally:

@@ -216,7 +216,7 @@ def make_mask_map_ipython(data, infile):
 
     return Brain(tmp_file)
 
-def make_mask_map(data, infile, outfile):
+def make_mask_map(data, infile, outfile, index=None):
     from neurosynth.base.mask import Masker
     from neurosynth.base import imageutils
 
@@ -226,8 +226,22 @@ def make_mask_map(data, infile, outfile):
 
     data = list(data)
 
+    if index is None:
+        index = np.arange(0, len(data))
+        rev_index = None
+    else:
+        all_reg = np.arange(0, img.max() -1)
+        rev_index = all_reg[np.invert(np.in1d(all_reg, index))]
+
+    min_val = img.min()
+
     for num, value in enumerate(data):
-        np.place(img, img == num + 1, [value])
+        n = index[num]
+        np.place(img, img == n + min_val, [value])
+
+    if rev_index is not None:
+        for value in rev_index:
+            np.place(img, img == value + min_val, 0)
 
     img = img.astype('float32')
 

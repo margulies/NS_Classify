@@ -6,13 +6,13 @@ import numpy as np
 from neurosynth.base.imageutils import save_img
 from scipy import sparse
 
-dataset = Dataset.load("../data/datasets/abs_topics_filt.pkl")
+dataset = Dataset.load("../data/datasets/abs_60topics_filt_jul.pkl")
 
 print "Filtering voxels..."
 
 data = dataset.image_table.data.toarray()
 
-voxel_mask = data.mean(axis=1) > 0.0135
+voxel_mask = data.mean(axis=1) > 0.01
 
 good_voxels = data[voxel_mask]
 
