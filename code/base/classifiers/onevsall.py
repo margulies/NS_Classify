@@ -4,7 +4,7 @@
 import numpy as np
 from scipy import stats
 
-def region_heatmap(clf, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None):
+def region_heatmap(clf, basename=None, zscore_regions=False, zscore_features=False, thresh=None, subset=None, alternate_labels=None):
     """" Makes a heatmap of the importances of the classification. Makes an overall average heatmap
     as well as a heatmap for each individual region. Optionally, you can specify the heatmap to be
     z-scored. You can also specify a threshold.
@@ -53,7 +53,7 @@ def region_heatmap(clf, basename=None, zscore_regions=False, zscore_features=Fal
     else:
         file_name = basename + "imps_hm_" + label + ".png"
 
-    heat_map(fi, np.array(subset) + 1, clf.feature_names, file_name)
+    heat_map(fi, np.array(subset) + 1, clf.feature_names, file_name = file_name)
 
 def average_ns(clf, mean=True):
 	""" For a OvA clf returns the n for each class.

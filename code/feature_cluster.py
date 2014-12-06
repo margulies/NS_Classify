@@ -9,19 +9,18 @@ from sklearn.linear_model import Ridge
 
 
 dataset = Dataset.load('../data/datasets/abs_60topics_filt_jul.pkl')
-full_data = dataset.get_image_data(dense=False)
 
 # cls = cluster.Clusterer(full_data, global_mask=dataset.masker)
 
-n_regions = [20, 25, 30, 35, 40, 45, 50]
+n_regions = [10, 60]
 
 ### For various resolutions
-for resolution in [3, 2]:
+for resolution in [3]:
 
 	print resolution
 
 	print "Downsampling..."
-	cls_a = cluster.Clusterer(full_data, global_mask=dataset.masker, grid_scale = resolution, min_studies_per_voxel = 75)
+	cls_a = cluster.Clusterer(dataset, algorithm='ward',grid_scale = resolution, min_studies_per_voxel = 75)
 
 	# low_res_data = (cls_a.data, cls_a.grid)
 
@@ -68,4 +67,4 @@ for resolution in [3, 2]:
 	for i in n_regions:
 		print i
 		cls_a.output_dir = '../results/cluster/cls_' + str(resolution) + 'mm_ward_coact_min75v/'
-		cls_a.cluster(n_clusters = i, algorithm ='ward')
+		cls_a.cluster(n_clusters = i)

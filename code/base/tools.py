@@ -141,7 +141,6 @@ def region_vox_baserates(dataset, regions, threshold=False, remove_zero=True):
             A list of 1D numpy array with voxels' base rates
         """
 
-        import numpy as np
         import pandas as pd
         from scipy.sparse import vstack
         import itertools
@@ -153,15 +152,13 @@ def region_vox_baserates(dataset, regions, threshold=False, remove_zero=True):
         else:
             dataset = dataset.get_image_data(dense=False)
 
-        n_regions = np.unique(regions).size
-
         start = 0
         if remove_zero:
                 start = 1
 
         results = []
         labels = []
-        for i in range(int(regions.min()), int(regions.max())):
+        for i in range(start, int(regions.max()) + 1):
                 data = dataset[np.where(regions == i)[0]]
 
                 if threshold:
@@ -230,7 +227,7 @@ def make_mask_map(data, infile, outfile, index=None):
         index = np.arange(0, len(data))
         rev_index = None
     else:
-        all_reg = np.arange(0, img.max() -1)
+        all_reg = np.arange(0, img.max())
         rev_index = all_reg[np.invert(np.in1d(all_reg, index))]
 
     min_val = img.min()

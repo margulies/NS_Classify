@@ -61,7 +61,7 @@ def regression_parallel(args):
     except:
         pass
 
-    cv = cross_validation.StratifiedKFold(y, 4, indices=True)
+    cv = cross_validation.StratifiedKFold(y, 4, shuffle=True)
 
     scores = []
     predictions = []
@@ -102,6 +102,7 @@ class OnevsallContinuous():
         self.memsave = memsave
         self.X = None
         self.remove_zero = remove_zero
+        self.n_features 
 
     def load_data(self, features):
         """ Loads ids and data for each individual mask """
@@ -152,6 +153,7 @@ class OnevsallContinuous():
             self.feature_names = self.dataset.get_feature_names()
 
         self.n_features = len(self.feature_names)
+        self.n_features_orig = self.dataset.get_feature_names()
 
         self.predictions = np.empty(self.comp_dims, object)
 

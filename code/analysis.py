@@ -93,11 +93,11 @@ now = datetime.datetime.now()
 # d_abs_topics = Dataset.load('../data/datasets')
 
 d_abs_topics_filt = Dataset.load('../data/datasets/abs_60topics_filt_jul.pkl')
+cognitive_topics = ['topic' + topic[0] for topic in csv.reader(
+	open('../data/unprocessed/abstract_topics_filtered/topic_sets/topic_keys60-july_cognitive.txt', 'rU'), delimiter='\t') if topic[1] == "T"]
 
 # Analyses
-from sklearn.metrics import r2_score
 from sklearn.metrics import explained_variance_score
-
 
 
 def complete_analysis(dataset, dataset_name, name, masklist, processes = 1, features=None):
@@ -150,8 +150,9 @@ try:
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "aal", "../masks/Andy/aal_MNI_V4.nii", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_30", "../masks/craddock/scorr_05_2level/30/merged.nii.gz", processes = pr, features=None)
 	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_40", "../masks/craddock/scorr_05_2level/40/merged.nii.gz", processes = pr, features=None)
-	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_20", "../masks/craddock/scorr_05_2level/20/merged.nii.gz", processes = pr, features=None)
-	complete_analysis(d_abs_topics_filt, "abs_topics_filt", "craddock_50", "../masks/craddock/scorr_05_2level/50/merged.nii.gz", processes = pr, features=None)
+	complete_analysis(d_abs_topics_filt, "abs_cog_topics", "wardmin75_30", "../results/cluster/cls_3mm_ward_coact_min75v/ward_k30/cluster_labels.nii.gz", processes = pr, features=cognitive_topics)
+
+	# complete_analysis(d_abs_topics_filt, "abs_topics_filt", "ward_f20_test", "../results/cluster_3mm_ward/ClusterImages/Cluster_k20.nii.gz", processes = pr, features=None)
 
 
 finally:
